@@ -209,7 +209,17 @@ app.get('/api/products/:id/packages', async (req, res) => {
             }
         });
         
-        res.json(Array.from(map.values()));
+        let availablePackages = Array.from(map.values()).filter(p => p.stock > 0);
+        if (availablePackages.length === 0) {
+            availablePackages.push({
+                _id: 'TẠM HẾT HÀNG|0',
+                name: 'TẠM HẾT HÀNG',
+                price: 0,
+                originalPrice: 0,
+                stock: 0
+            });
+        }
+        res.json(availablePackages);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: error.message });
@@ -372,6 +382,29 @@ app.get('/api/admin/users', async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 });
+
+
+// ==========================================
+// THÊM API XÓA KHO KEY VÀ ĐƠN HÀNG (BỔ SUNG)
+// ==========================================
+app.delete('/api/admin/keys/:id', async (req, res) => {
+    try {
+        await Key.findByIdAndDelete(req.params.id);
+        res.status(200).json({ success: true, message: "Đã xóa Key thành công!" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+app.delete('/api/admin/orders/:id', async (req, res) => {
+    try {
+        await Order.findByIdAndDelete(req.params.id);
+        res.status(200).json({ success: true, message: "Đã xóa Đơn hàng thành công!" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 
 // Lấy dữ liệu thống kê tổng quan (Admin Dashboard)
 app.get('/api/admin/stats', async (req, res) => {

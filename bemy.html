@@ -21,6 +21,60 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="icon" href="/logo.png" type="image/png">
+
+<script>
+    // --- TÍNH NĂNG: LƯU MẬT KHẨU ADMIN KHI F5 ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedAdminPass = sessionStorage.getItem('ADMIN_PASSWORD');
+        
+        if (savedAdminPass) {
+            setTimeout(() => {
+                const pwdInput = document.querySelector('input[type="password"]');
+                if (pwdInput) {
+                    pwdInput.value = savedAdminPass;
+                    if (typeof verifyAdminPassword === 'function') {
+                        verifyAdminPassword();
+                    }
+                }
+            }, 300);
+        }
+    });
+
+    // Đánh chặn hàm verifyAdminPassword để lưu mật khẩu nếu thành công
+    const origVerify = window.verifyAdminPassword;
+    if (origVerify) {
+        window.verifyAdminPassword = async function() {
+            const pwdInput = document.querySelector('input[type="password"]');
+            if (pwdInput && pwdInput.value) {
+                // Lưu tạm để nếu thành công sẽ không bị mất
+                window.__TEMP_ADMIN_PASS = pwdInput.value;
+            }
+            return origVerify.apply(this, arguments);
+        };
+    }
+
+    // Đánh chặn fetch để biết khi nào xác thực Admin thành công
+    const origFetchAdmin = window.fetch;
+    window.fetch = async function() {
+        if (arguments[0] && typeof arguments[0] === 'string') {
+            arguments[0] = arguments[0].replace("http://localhost:5000", "");
+        }
+        
+        const url = arguments[0];
+        const response = await origFetchAdmin.apply(this, arguments);
+        
+        if (typeof url === 'string' && url.includes('/admin/verify-hmac')) {
+            const clone = response.clone();
+            clone.json().then(data => {
+                if (data.success && window.__TEMP_ADMIN_PASS) {
+                    sessionStorage.setItem('ADMIN_PASSWORD', window.__TEMP_ADMIN_PASS);
+                }
+            }).catch(e => {});
+        }
+        return response;
+    };
+</script>
+
 </head>
 <body>
     <script src="./index/render_bemy.js"></script>
