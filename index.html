@@ -2,8 +2,9 @@
 <html lang="vi">
 <head>
 
+
 <script>
-    // Tự động sửa lỗi API khi chuyển môi trường & Bắt sự kiện Login
+    // --- TÍNH NĂNG: LƯU TRẠNG THÁI ĐĂNG NHẬP (AUTO LOGIN BYPASS OBFUSCATION) ---
     const originalFetch = window.fetch;
     window.fetch = async function() {
         if (arguments[0] && typeof arguments[0] === 'string') {
@@ -13,9 +14,24 @@
         const url = arguments[0];
         const options = arguments[1];
         
+        // NẾU ĐANG KÍCH HOẠT AUTO LOGIN BẰNG FAKE REQUEST
+        if (window.__AUTO_LOGIN_USER__ && typeof url === 'string' && url.includes('/login') && options && options.method === 'POST') {
+            const fakeUser = window.__AUTO_LOGIN_USER__;
+            window.__AUTO_LOGIN_USER__ = null; // Chỉ dùng 1 lần
+            
+            // Trả về một Response giả mạo thành công để đánh lừa mã nguồn bị mã hóa
+            return new Response(JSON.stringify({
+                message: "Khôi phục phiên đăng nhập",
+                username: fakeUser
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
         const response = await originalFetch.apply(this, arguments);
         
-        // Bắt sự kiện Login/Register thành công
+        // Bắt sự kiện Login/Register thành công thật sự để lưu vào SessionStorage
         if (typeof url === 'string' && (url.includes('/login') || url.includes('/register')) && options && options.method === 'POST') {
             const clone = response.clone();
             clone.json().then(data => {
@@ -36,7 +52,45 @@
         
         return response;
     };
+    
+    // Script kích hoạt Auto Login khi tải trang xong
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedUser = sessionStorage.getItem('THEGHOST_SAVED_USER');
+        if (savedUser) {
+            setTimeout(() => {
+                if (typeof handleAuth === 'function') {
+                    // Kích hoạt cờ để fetch chặn lại
+                    window.__AUTO_LOGIN_USER__ = savedUser;
+                    
+                    // Điền bừa dữ liệu để handleAuth không bị lỗi undefined
+                    const emailInput = document.getElementById('login-email');
+                    const passInput = document.getElementById('login-password');
+                    if (emailInput) emailInput.value = "auto@login.com";
+                    if (passInput) passInput.value = "auto";
+                    
+                    // Gọi thẳng hàm đăng nhập (đã bị mã hóa) của hệ thống
+                    handleAuth({ preventDefault: () => {} }, 'login');
+                    
+                    // Sau đó xóa dữ liệu rác đi
+                    setTimeout(() => {
+                        if (emailInput) emailInput.value = "";
+                        if (passInput) passInput.value = "";
+                    }, 100);
+                }
+            }, 300);
+        }
+    });
+
+    // Bắt sự kiện đăng xuất để xóa bộ nhớ
+    document.addEventListener('click', (e) => {
+        if ((e.target.innerText && e.target.innerText.includes('Đăng xuất')) || 
+            (e.target.closest('li') && e.target.closest('li').getAttribute('onclick') === 'logout()') ||
+            (typeof e.target.getAttribute === 'function' && e.target.getAttribute('onclick') === 'logout()')) {
+            sessionStorage.removeItem('THEGHOST_SAVED_USER');
+        }
+    });
 </script>
+
 
 
     <meta charset="UTF-8">
