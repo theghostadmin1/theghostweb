@@ -1,16 +1,43 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+
 <script>
-    // Tự động sửa lỗi API khi chuyển môi trường (localhost -> server)
+    // Tự động sửa lỗi API khi chuyển môi trường & Bắt sự kiện Login
     const originalFetch = window.fetch;
-    window.fetch = function() {
+    window.fetch = async function() {
         if (arguments[0] && typeof arguments[0] === 'string') {
             arguments[0] = arguments[0].replace("http://localhost:5000", "");
         }
-        return originalFetch.apply(this, arguments);
+        
+        const url = arguments[0];
+        const options = arguments[1];
+        
+        const response = await originalFetch.apply(this, arguments);
+        
+        // Bắt sự kiện Login/Register thành công
+        if (typeof url === 'string' && (url.includes('/login') || url.includes('/register')) && options && options.method === 'POST') {
+            const clone = response.clone();
+            clone.json().then(data => {
+                if (response.ok && (data.username || (data.message && data.message.includes('thành công')))) {
+                    let userToSave = data.username;
+                    if (!userToSave && options.body) {
+                        try {
+                            const bodyObj = JSON.parse(options.body);
+                            userToSave = bodyObj.username || bodyObj.email;
+                        } catch(e) {}
+                    }
+                    if (userToSave) {
+                        sessionStorage.setItem('THEGHOST_SAVED_USER', userToSave);
+                    }
+                }
+            }).catch(e => {});
+        }
+        
+        return response;
     };
 </script>
+
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,5 +59,92 @@
     <script src="./index/render_index.js"></script>
     <script src="./index/script.js?v=3"></script>
     <script src="./index/security.js"></script>
+
+
+
+
+<script>
+    // --- TÍNH NĂNG: GLOBAL REALTIME POLLING (TỰ ĐỘNG CẬP NHẬT MỌI THỨ KHÔNG CẦN TẢI LẠI TRANG) ---
+    let lastKnownBalance = -1;
+
+    setInterval(() => {
+        // Chỉ chạy khi user đã đăng nhập
+        if (typeof CURRENT_USER_ID !== 'undefined' && CURRENT_USER_ID !== 'guest') {
+            
+            const balanceEl = document.getElementById('header-balance');
+            if (!balanceEl) return;
+            
+            // Nếu là lần đầu chạy, gán lastKnownBalance
+            if (lastKnownBalance === -1) {
+                const currentStr = balanceEl.innerText.replace(/[^0-9]/g, '');
+                lastKnownBalance = parseInt(currentStr) || 0;
+            }
+            
+            // Gọi API kiểm tra số dư và dữ liệu mới
+            fetch(API_URL + '/user-data/' + CURRENT_USER_ID)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && typeof data.balance === 'number') {
+                        // Nếu phát hiện có sự thay đổi số dư (tăng hoặc giảm)
+                        if (data.balance !== lastKnownBalance) {
+                            const diff = data.balance - lastKnownBalance;
+                            lastKnownBalance = data.balance;
+                            
+                            // 1. Cập nhật lại toàn bộ giao diện (Số dư, Lịch sử, Đơn hàng) mà không cần tải lại trang
+                            if (typeof loadUserData === 'function') loadUserData(CURRENT_USER_ID);
+                            
+                            // 2. Xử lý riêng cho màn hình Nạp Tiền (Nếu đang mở)
+                            const topupModal = document.getElementById('topup-modal');
+                            if (diff > 0 && topupModal && topupModal.classList.contains('show')) {
+                                const qrImg = document.getElementById('sepay-qr-img');
+                                if (qrImg && !document.getElementById('qr-success-msg')) {
+                                    qrImg.style.display = 'none';
+                                    const parent = qrImg.parentElement;
+                                    const successUI = document.createElement('div');
+                                    successUI.id = 'qr-success-msg';
+                                    successUI.style.display = 'flex';
+                                    successUI.style.flexDirection = 'column';
+                                    successUI.style.alignItems = 'center';
+                                    successUI.style.justifyContent = 'center';
+                                    successUI.style.padding = '40px 10px';
+                                    successUI.style.background = 'rgba(16, 185, 129, 0.1)';
+                                    successUI.style.border = '2px dashed #10b981';
+                                    successUI.style.borderRadius = '10px';
+                                    successUI.style.marginTop = '10px';
+                                    successUI.innerHTML = `
+                                        <i class="fas fa-check-circle" style="font-size: 3.5rem; color: #10b981; margin-bottom: 15px; animation: bounce 1s infinite;"></i>
+                                        <h3 style="color: #10b981; margin: 0 0 10px 0;">CHUYỂN KHOẢN THÀNH CÔNG!</h3>
+                                        <p style="color: #fff; font-size: 1.1rem; margin: 0;">Hệ thống đã ghi nhận: <strong style="color: #a855f7;">+${diff.toLocaleString()}đ</strong></p>
+                                    `;
+                                    parent.appendChild(successUI);
+                                    
+                                    if (typeof showToast === 'function') showToast("Nhận tiền thành công! Cảm ơn bạn.");
+                                    
+                                    setTimeout(() => {
+                                        if (typeof closeTopupModal === 'function') closeTopupModal();
+                                        qrImg.style.display = 'block';
+                                        successUI.remove();
+                                    }, 4000);
+                                }
+                            } else if (diff > 0) {
+                                // Nếu tiền được cộng mà không mở bảng nạp (ví dụ Admin cộng tiền)
+                                if (typeof showToast === 'function') showToast("Tài khoản vừa được cộng: +" + diff.toLocaleString() + "đ");
+                            }
+                        }
+                    }
+                })
+                .catch(err => console.log('Lỗi đồng bộ Realtime:', err));
+                
+            // Tự động kéo lại danh sách sản phẩm để cập nhật tồn kho (mỗi 10 giây 1 lần = sau 3 chu kỳ)
+            if (!window.pollTick) window.pollTick = 0;
+            window.pollTick++;
+            if (window.pollTick >= 3) {
+                window.pollTick = 0;
+                if (typeof loadClientProducts === 'function') loadClientProducts();
+            }
+        }
+    }, 4000); // Tốc độ quét 4 giây / lần (Realtime Simulation)
+</script>
+
 </body>
 </html>
