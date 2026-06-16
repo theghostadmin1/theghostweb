@@ -104,6 +104,9 @@
     <meta property="og:type" content="website">
     <title>TheGhost Coder - Premium Auto System</title>
 
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./index/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -111,8 +114,8 @@
 </head>
 <body>
     <script src="./index/render_index.js"></script>
-    <script src="./index/script.js?v=3"></script>
-    <script src="./index/security.js"></script>
+    <script src="./index/script.js?v=3" defer></script>
+    <script src="./index/security.js" defer></script>
 
 
 
@@ -198,6 +201,68 @@
             }
         }
     }, 4000); // Tốc độ quét 4 giây / lần (Realtime Simulation)
+</script>
+
+
+<script>
+    // Ghi đè hàm loadUserData để tự động hiển thị mảng history
+    document.addEventListener('DOMContentLoaded', () => {
+        // Lưu lại fetch gốc để bắt dữ liệu /user-data
+        const origFetch = window.fetch;
+        window.fetch = async function() {
+            const response = await origFetch.apply(this, arguments);
+            const url = arguments[0];
+            if (typeof url === 'string' && url.includes('/user-data/')) {
+                const clone = response.clone();
+                clone.json().then(data => {
+                    if (data && data.history) {
+                        const historyTbody = document.getElementById('history-tbody');
+                        if (historyTbody) {
+                            historyTbody.innerHTML = '';
+                            if (data.history.length === 0) {
+                                historyTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#9ca3af;">Chưa có lịch sử giao dịch.</td></tr>';
+                                return;
+                            }
+                            data.history.forEach(item => {
+                                const d = new Date(item.date);
+                                const timeStr = `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')} ${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+                                
+                                // Logic màu sắc và dấu tick/x
+                                let statusIcon = '';
+                                let statusText = item.status || 'Thành công';
+                                let statusColor = '';
+                                
+                                if (statusText === 'Thành công') {
+                                    statusIcon = '<i class="fas fa-check-circle" style="color:#10b981;"></i>';
+                                    statusColor = 'color: #10b981;';
+                                } else if (statusText === 'Thất bại') {
+                                    statusIcon = '<i class="fas fa-times-circle" style="color:#ef4444;"></i>';
+                                    statusColor = 'color: #ef4444;';
+                                } else {
+                                    statusIcon = '<i class="fas fa-clock" style="color:#fbbf24;"></i>';
+                                    statusColor = 'color: #fbbf24;';
+                                }
+                                
+                                // Nếu là trừ tiền mua hàng
+                                let amountDisplay = item.type.includes('Mua') ? '-' : '+';
+                                let amountColor = item.type.includes('Mua') ? 'color:#ef4444;' : 'color:#10b981;';
+                                
+                                const row = `<tr>
+                                    <td><span class="order-id">${item._id.substring(item._id.length-6).toUpperCase()}</span></td>
+                                    <td><strong>${item.type}</strong></td>
+                                    <td style="${amountColor} font-weight:bold;">${amountDisplay}${item.amount.toLocaleString()}đ</td>
+                                    <td class="text-muted">${item.desc}</td>
+                                    <td><span style="${statusColor} font-weight:700; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px;">${statusIcon} ${statusText}</span> <br><small class="text-muted" style="font-size:0.8rem;">${timeStr}</small></td>
+                                </tr>`;
+                                historyTbody.insertAdjacentHTML('beforeend', row);
+                            });
+                        }
+                    }
+                }).catch(e => {});
+            }
+            return response;
+        };
+    });
 </script>
 
 </body>

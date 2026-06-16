@@ -685,11 +685,18 @@ app.post('/api/topup-card', async (req, res) => {
         const tstData = await tstResponse.json();
 
         if (tstData.status === 1 || tstData.status === 99) {
+            const h = new History({ username: userId, type: "Nạp Thẻ", amount: parseInt(amount), desc: `${type} - ${serial}`, status: 'Chờ xử lý' });
+            await h.save();
             return res.status(200).json({ message: "Thẻ đã đẩy lên Cổng thành công!" });
         } else {
+            const h = new History({ username: userId, type: "Nạp Thẻ", amount: parseInt(amount), desc: `${type} - ${serial}`, status: 'Thất bại' });
+            await h.save();
             return res.status(400).json({ message: tstData.message || "Thẻ cào không hợp lệ." });
         }
     } catch (error) {
+        // Giả lập
+        const h = new History({ username: userId, type: "Nạp Thẻ", amount: parseInt(amount), desc: `${type} - ${serial} (Giả lập)`, status: 'Thành công' });
+        await h.save();
         return res.status(200).json({ message: "Cổng gạch (Giả lập): Ghi nhận thẻ cào thành công!" });
     }
 });
