@@ -1,6 +1,17 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<script>
+    // Tự động sửa lỗi API khi chuyển môi trường (localhost -> server)
+    const originalFetch = window.fetch;
+    window.fetch = function() {
+        if (arguments[0] && typeof arguments[0] === 'string') {
+            arguments[0] = arguments[0].replace("http://localhost:5000", "");
+        }
+        return originalFetch.apply(this, arguments);
+    };
+</script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="TheGhost Coder - H? th?ng cung c?p Tool, Bot, Acc Game t? d?ng, uy tn, an ton 100%. N?p ti?n t? d?ng 24/7.">
