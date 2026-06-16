@@ -1,0 +1,600 @@
+<!DOCTYPE html><html><head></head><body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="logo-area" onclick="switchPage('home')">
+                <img src="logo.png" alt="TheGhost Logo" class="logo-icon">
+                <span class="logo-text"><span class="logo-ghost">TheGhost</span> <span class="logo-highlight">Coder</span></span>
+            </div>
+            <nav class="sidebar-nav">
+                <p class="nav-title">MENU</p>
+                <ul>
+                    <li class="active" id="menu-home"><a href="#" onclick="switchPage('home')" data-i18n="menu_home"><i class="fas fa-home"></i> Trang chủ</a></li>
+
+                    <li id="menu-topup"><a href="#" onclick="openTopupModal('bank')" data-i18n="menu_topup"><i class="fas fa-dollar-sign"></i> Nạp tiền <span class="badge badge-free">Auto</span></a>
+                    </li>
+                    <li id="menu-products"><a href="#" onclick="scrollToProducts()" data-i18n="menu_products"><i class="fas fa-shopping-cart"></i> Sản phẩm</a></li>
+                    <li id="menu-orders"><a href="#" onclick="switchPage('orders')" data-i18n="menu_orders"><i class="fas fa-box"></i> Đơn hàng</a></li>
+                    <li id="menu-history"><a href="#" onclick="switchPage('history')" data-i18n="menu_history"><i class="fas fa-clock"></i> Lịch sử giao dịch</a></li>
+                </ul>
+                <p class="nav-title">DỊCH VỤ</p>
+                <ul>
+                    <li><a href="#"><i class="fas fa-rocket"></i> Bot FreeFire <span class="badge badge-new">New</span></a></li>
+                    <li id="menu-news"><a href="#" onclick="switchPage('news')"><i class="fas fa-file-alt"></i> Tin tức
+                            &amp; Blog</a></li>
+                    <li id="menu-download"><a href="#" onclick="switchPage('download')"><i class="fas fa-download"></i>
+                            Tải xuống <span class="badge badge-free">Free</span></a></li>
+                    <li><a href="#"><i class="fas fa-code"></i> API Seller</a></li>
+                    <li id="menu-contact"><a href="#" onclick="switchPage('contact')"><i class="fas fa-phone-alt"></i>
+                            Liên hệ</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" data-i18n="search_placeholder" placeholder="Tìm kiếm sản phẩm, dịch vụ... (Enter)">
+                </div>
+                <div class="header-actions">
+
+                    <div class="lang-switcher" onclick="toggleLangDropdown()">
+                        <i class="fas fa-globe"></i> <span id="current-lang">VI</span>
+                        <ul class="lang-menu" id="lang-dropdown">
+                            <li onclick="changeLanguage('vi', event)">🇻🇳 Tiếng Việt</li>
+                            <li onclick="changeLanguage('en', event)">🇬🇧 English</li>
+                            <li onclick="changeLanguage('zh', event)">🇨🇳 中文 (Trung Quốc)</li>
+                            <li onclick="changeLanguage('th', event)">🇹🇭 ภาษาไทย (Thái Lan)</li>
+                            <li onclick="changeLanguage('ko', event)">🇰🇷 한국어 (Hàn Quốc)</li>
+                            <li onclick="changeLanguage('ja', event)">🇯🇵 日本語 (Nhật Bản)</li>
+                        </ul>
+                    </div>
+                    <div id="guest-area" class="auth-area">
+                        <button class="header-btn btn-login" onclick="openModal('login')">Đăng nhập</button>
+                        <button class="header-btn btn-register" onclick="openModal('register')">Đăng ký</button>
+                    </div>
+                    <div id="logged-in-area" class="user-info-area" style="display: none;">
+                        <button class="header-btn balance-btn" id="header-balance">0đ</button>
+                        <div class="user-profile-dropdown">
+                            <div class="user-info" onclick="toggleDropdown()">
+                                <img src="logo.png" alt="Avatar" class="custom-avatar">
+                                <span id="display-username" class="username">User</span>
+                                <i class="fas fa-chevron-down dropdown-icon"></i>
+                            </div>
+                            <ul class="dropdown-menu" id="user-dropdown">
+                                <li><a href="#" onclick="switchPage('account')"><i class="fas fa-user-circle"></i> Thông
+                                        tin tài khoản</a></li>
+                                <li><a href="#" onclick="switchPage('history')"><i class="fas fa-wallet"></i> Lịch sử
+                                        giao dịch</a></li>
+                                <li><a href="#"><i class="fas fa-cog"></i> Cài đặt bảo mật</a></li>
+                                <hr>
+                                <li><a href="#" onclick="logout()" class="text-danger"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+
+                <div id="home-page" class="page-section active">
+                    <div class="marquee-container stagger-1">
+                        <span class="marquee-badge"><i class="fas fa-bullhorn"></i> THÔNG BÁO</span>
+                        <div class="marquee-text-wrap">
+                            <div class="marquee-text">
+                                <span>🔥 SINH TỒN, TỬ CHIẾN, AURORAVN VỚI KINH NGHIỆM HƠN 6+ NĂM NÊN MỌI NGƯỜI HOÀN TOÀN
+                                    YÊN TÂM Ạ &nbsp;&nbsp;&nbsp;&nbsp; 🔥 AIMBOT AURORA + BYPASS XG CỰC KỲ AN TOÀN ĐỂ
+                                    LEO RANK...</span>
+                                <span>🔥 SINH TỒN, TỬ CHIẾN, AURORAVN VỚI KINH NGHIỆM HƠN 6+ NĂM NÊN MỌI NGƯỜI HOÀN TOÀN
+                                    YÊN TÂM Ạ &nbsp;&nbsp;&nbsp;&nbsp; 🔥 AIMBOT AURORA + BYPASS XG CỰC KỲ AN TOÀN ĐỂ
+                                    LEO RANK...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="admin-post-card stagger-2 hover-glow">
+                        <img src="logo.png" alt="Admin" class="admin-avatar">
+                        <div class="post-content">
+                            <h4>TheGhost Coder <i class="fas fa-check-circle verified-icon"></i> <span class="post-date">15/6/2026</span></h4>
+                            <ul>
+                                <li>Hệ thống bán key aimbot tự động, nạp tiền 24/24 nhanh chóng, bảo mật.</li>
+                                <li>Mọi vấn đề cần hỗ trợ, liên hệ Admin qua biểu tượng AI ở góc phải.</li>
+                                <li>Zalo: 0123.456.789</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid stagger-3" id="guest-stats-grid">
+                        <div class="stat-card hover-glow">
+                            <h3 id="stat-balance">0đ</h3>
+                            <p data-i18n="stat_balance">Số dư</p>
+                        </div>
+                        <div class="stat-card hover-glow">
+                            <h3 id="stat-orders">0</h3>
+                            <p data-i18n="stat_orders">Đơn hàng</p>
+                        </div>
+                        <div class="stat-card hover-glow">
+                            <h3 class="gradient-text">Member</h3>
+                            <p data-i18n="stat_member">Thành viên</p>
+                        </div>
+                    </div>
+
+                    <div class="banner-grid stagger-4">
+                        <div class="banner-card hover-glow" onclick="openTopupModal('bank')" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%); border-left: 4px solid #10b981; display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center; height: 160px; text-decoration: none;">
+                            <div>
+                                <i class="fas fa-university" style="font-size: 3rem; color: #10b981; margin-bottom: 15px; filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.5));"></i>
+                                <h3 style="color: #fff; margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: 0.5px;">NẠP QUA NGÂN HÀNG</h3>
+                                <p style="color: #10b981; margin-top: 5px; font-size: 0.9rem; font-weight: 600;">(Nhận tiền sau 3 giây)</p>
+                            </div>
+                        </div>
+                        <div class="banner-card hover-glow" onclick="openTopupModal('card')" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%); border-left: 4px solid #ef4444; display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center; height: 160px; text-decoration: none;">
+                            <div>
+                                <i class="fas fa-credit-card" style="font-size: 3rem; color: #ef4444; margin-bottom: 15px; filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.5));"></i>
+                                <h3 style="color: #fff; margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: 0.5px;">NẠP QUA THẺ CÀO</h3>
+                                <p style="color: #ef4444; margin-top: 5px; font-size: 0.9rem; font-weight: 600;">(Xử lý thẻ trong 5 giây)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="products-section" class="stagger-5" style="margin-top: 40px; margin-bottom: 20px;">
+                        <div class="section-header">
+                            <h2 class="gradient-text" data-i18n="prod_title"><i class="fas fa-store"></i> DANH MỤC SẢN
+                                PHẨM</h2>
+                        </div>
+
+                        <div class="product-tabs">
+                            <button class="prod-tab active" onclick="switchProdTab('cheat', this)" data-i18n="tab_cheat">Bot &amp; Cheat</button>
+                            <button class="prod-tab" onclick="switchProdTab('acc', this)" data-i18n="tab_acc">Tài khoản
+                                Game</button>
+                            <button class="prod-tab" onclick="switchProdTab('tool', this)" data-i18n="tab_tool">Công cụ
+                                Check</button>
+                        </div>
+
+                        <div id="prod-cheat" class="prod-content active">
+                            <div class="prod-grid" id="grid-cheat">
+                            </div>
+                        </div>
+
+                        <div id="prod-acc" class="prod-content" style="display: none;">
+                            <div class="prod-grid" id="grid-acc">
+                            </div>
+                        </div>
+
+                        <div id="prod-tool" class="prod-content" style="display: none;">
+                            <div class="prod-grid" id="grid-tool">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="info-grid stagger-6">
+                        <div class="info-card hover-glow">
+                            <div class="card-title"><i class="fas fa-comment-dots"></i>
+                                <h4>THÔNG BÁO QUAN TRỌNG</h4>
+                            </div>
+                            <p class="desc-text">Chào mừng bạn đến với shop của chúng tôi!</p>
+                            <ul class="notification-list">
+                                <li><span class="colored-line line-purple"></span> Liên hệ Admin: <a href="#">Xem
+                                        ngay</a></li>
+                                <li><span class="colored-line line-cyan"></span> Download - Tải xuống: <a href="#">Xem
+                                        ngay</a></li>
+                                <li><span class="colored-line line-red"></span> Nạp tiền: <a href="#">Xem ngay</a></li>
+                                <li><span class="colored-line line-green"></span> Bot Free Fire: <a href="#">Xem
+                                        ngay</a></li>
+                            </ul>
+                        </div>
+
+                        <div class="info-card tool-card hover-glow">
+                            <div class="card-title">
+                                <img src="logo.png" style="width: 35px; height: 35px; object-fit: contain; filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));" alt="Logo Tool">
+                                <h4>Siêu Công Cụ Free Fire</h4>
+                                <span class="badge badge-free">MIỄN PHÍ</span>
+                                <span class="badge badge-hot" style="background: rgba(255,255,255,0.1); color: #fff; border:none; margin-left: 5px;">HOT</span>
+                            </div>
+                            <p class="desc-text">Bộ công cụ miễn phí: Soi kho đồ, check ban, tìm mail phụ &amp; thay đổi
+                                liên kết an toàn.</p>
+                            <ul class="tool-list">
+                                <li><i class="fas fa-search"></i> Soi chi tiết hòm đồ &amp; skin súng</li>
+                                <li><i class="fas fa-shield-alt"></i> Quét tình trạng Khóa/Ban Acc</li>
+                                <li><i class="fas fa-envelope"></i> Tìm Email Phụ &amp; Thay Đổi Liên Kết</li>
+                            </ul>
+                            <button class="btn-discover" onclick="showToast('Đang khởi động trí tuệ nhân tạo...')"><i class="fas fa-chart-line"></i> KHÁM PHÁ CÔNG CỤ NGAY</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="account-page" class="page-section" style="display: none;">
+                    <div class="section-header stagger-1">
+                        <h2 class="gradient-text"><i class="fas fa-user-circle"></i> THÔNG TIN TÀI KHOẢN</h2>
+                        <p class="desc-text">Xem tổng quan về tài khoản, số dư, đơn hàng và lịch sử nạp.</p>
+                    </div>
+
+                    <div class="account-info-container stagger-2 hover-glow" style="background: rgba(17, 24, 39, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;">
+                            <i class="fas fa-id-card" style="font-size: 1.5rem; color: #fff;"></i>
+                            <h3 style="margin: 0; font-size: 1.2rem; font-weight: 600; color: #fff;">Chi tiết thông tin
+                            </h3>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div>
+                                <p style="color: #9ca3af; font-size: 0.9rem; margin: 0 0 5px 0;">Tên hiển thị</p>
+                                <strong id="acc-info-username" style="color: #fff; font-size: 1.1rem;">-</strong>
+                            </div>
+                            <div>
+                                <p style="color: #9ca3af; font-size: 0.9rem; margin: 0 0 5px 0;">Số dư hiện tại</p>
+                                <strong id="acc-info-balance" style="color: #10b981; font-size: 1.1rem;">0đ</strong>
+                            </div>
+                            <div>
+                                <p style="color: #9ca3af; font-size: 0.9rem; margin: 0 0 5px 0;">Tổng tiền đã nạp</p>
+                                <strong id="acc-info-total-deposit" style="color: var(--primary-color); font-size: 1.1rem;">0đ</strong>
+                            </div>
+                            <div>
+                                <p style="color: #9ca3af; font-size: 0.9rem; margin: 0 0 5px 0;">Đơn hàng đã mua</p>
+                                <strong id="acc-info-orders-count" style="color: #fbbf24; font-size: 1.1rem;">0</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="orders-page" class="page-section" style="display: none;">
+                    <div class="section-header stagger-1">
+                        <h2 class="gradient-text" data-i18n="order_title"><i class="fas fa-box-open"></i> QUẢN LÝ ĐƠN
+                            HÀNG</h2>
+                        <p class="desc-text">Lịch sử mua hàng và danh sách key/tool phần mềm bạn đã sở hữu.</p>
+                    </div>
+
+                    <div class="orders-container stagger-2 hover-glow">
+                        <div class="table-responsive">
+                            <table class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã đơn</th>
+                                        <th>Sản phẩm / Dịch vụ</th>
+                                        <th>Số tiền</th>
+                                        <th>Thời gian mua</th>
+                                        <th>Trạng thái</th>
+                                        <th>Mã Key Sản Phẩm</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orders-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="history-page" class="page-section" style="display: none;">
+                    <div class="section-header stagger-1">
+                        <h2 class="gradient-text" data-i18n="history_title"><i class="fas fa-history"></i> LỊCH SỬ GIAO
+                            DỊCH</h2>
+                        <p class="desc-text">Toàn bộ biến động số dư (Nạp tiền &amp; Trừ tiền mua hàng) của bạn.</p>
+                    </div>
+
+                    <div class="orders-container stagger-2 hover-glow">
+                        <div class="table-responsive">
+                            <table class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã GD</th>
+                                        <th>Loại GD</th>
+                                        <th>Số tiền</th>
+                                        <th>Nội dung chi tiết</th>
+                                        <th>Thời gian</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="news-page" class="page-section" style="display: none;">
+                    <div class="section-header stagger-1">
+                        <h2 class="gradient-text"><i class="fas fa-newspaper"></i> TIN TỨC &amp; THÔNG BÁO</h2>
+                        <p class="desc-text">Cập nhật những thông tin mới nhất về hệ thống, bảo trì và sự kiện.</p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;" class="stagger-2">
+
+                        <div class="info-card hover-glow" style="border-left: 4px solid #10b981; padding: 0; overflow: hidden;">
+                            <img src="https://i.imgur.com/rN5G5h2.jpg" alt="Bank Topup" style="width: 100%; height: 180px; object-fit: cover; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div style="padding: 20px;">
+                                <div class="card-title">
+                                    <h4><i class="fas fa-check-circle" style="color: #10b981;"></i> Cập nhật Nạp Auto
+                                    </h4>
+                                    <span class="badge status-success" style="margin-left:auto;">15/06/2026</span>
+                                </div>
+                                <p class="desc-text" style="margin-top: 10px;">Hệ thống nạp tiền tự động qua ngân hàng
+                                    bằng SePay đã chính thức hoạt động ổn định 24/7. Tốc độ xử lý từ 1-5 giây sau khi
+                                    chuyển khoản.</p>
+                            </div>
+                        </div>
+
+                        <div class="info-card hover-glow" style="border-left: 4px solid var(--primary-color); padding: 0; overflow: hidden;">
+                            <img src="https://i.imgur.com/PZc3X6H.jpg" alt="Update" style="width: 100%; height: 180px; object-fit: cover; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div style="padding: 20px;">
+                                <div class="card-title">
+                                    <h4><i class="fas fa-rocket" style="color: var(--primary-color);"></i> Aimbot Aurora
+                                        V2.5</h4>
+                                    <span class="badge badge-hot" style="margin-left:auto;">10/06/2026</span>
+                                </div>
+                                <p class="desc-text" style="margin-top: 10px;">Phiên bản Aimbot Aurora V2.5 đã ra mắt
+                                    với tính năng Bypass siêu cấp mới. An toàn hơn 99% cho tài khoản chính (Main). Hãy
+                                    tải bản mới nhất.</p>
+                            </div>
+                        </div>
+
+                        <div class="info-card hover-glow" style="border-left: 4px solid #fbbf24; padding: 0; overflow: hidden;">
+                            <img src="https://images.unsplash.com/photo-1614064641913-a53b15c8052e?q=80&amp;w=2069&amp;auto=format&amp;fit=crop" alt="Warning" style="width: 100%; height: 180px; object-fit: cover; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div style="padding: 20px;">
+                                <div class="card-title">
+                                    <h4><i class="fas fa-exclamation-triangle" style="color: #fbbf24;"></i> Lưu ý Thẻ
+                                        Siêu Tốc</h4>
+                                    <span class="badge" style="background: rgba(251,191,36,0.2); color: #fbbf24; margin-left:auto;">05/06/2026</span>
+                                </div>
+                                <p class="desc-text" style="margin-top: 10px;">Khi nạp qua thẻ cào điện thoại, quý khách
+                                    vui lòng chọn đúng Mệnh Giá. Nếu chọn sai mệnh giá, thẻ sẽ bị hủy và không thể hỗ
+                                    trợ đền bù.</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div id="download-page" class="page-section" style="display: none;">
+                    <div class="section-header stagger-1">
+                        <h2 class="gradient-text"><i class="fas fa-download"></i> TẢI XUỐNG PHẦN MỀM</h2>
+                        <p class="desc-text">Tải xuống các phiên bản mới nhất của Tool và Client hệ thống hoàn toàn miễn
+                            phí.</p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;" class="stagger-2">
+
+                        <div class="info-card hover-glow" style="border-top: 4px solid var(--primary-color); padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+                            <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&amp;w=2070&amp;auto=format&amp;fit=crop" alt="Client App" style="width: 100%; height: 160px; object-fit: cover;">
+                            <div style="padding: 20px; flex: 1; display: flex; flex-direction: column;">
+                                <div class="card-title">
+                                    <h4><i class="fas fa-desktop" style="color: var(--primary-color);"></i> TheGhost
+                                        Client (Windows)</h4>
+                                </div>
+                                <p class="desc-text" style="margin-top: 10px; flex: 1;">Phần mềm Client độc quyền dùng
+                                    để quản lý Key, tự động Inject (Bypass) cực an toàn cho PC. Yêu cầu Windows 10/11
+                                    64-bit.</p>
+                                <button class="btn-auth" style="margin-top: 15px;" onclick="window.open('#')"><i class="fas fa-download"></i> Tải Ngay (v1.2.0)</button>
+                            </div>
+                        </div>
+
+                        <div class="info-card hover-glow" style="border-top: 4px solid #10b981; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+                            <img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&amp;w=2070&amp;auto=format&amp;fit=crop" alt="Cleaner" style="width: 100%; height: 160px; object-fit: cover;">
+                            <div style="padding: 20px; flex: 1; display: flex; flex-direction: column;">
+                                <div class="card-title">
+                                    <h4><i class="fas fa-broom" style="color: #10b981;"></i> PC Cleaner / Spoofer</h4>
+                                </div>
+                                <p class="desc-text" style="margin-top: 10px; flex: 1;">Xóa sạch Log Game, rác hệ thống,
+                                    xóa dấu vết và hỗ trợ Fake HWID (Spoofer) để vào game an toàn 100%.</p>
+                                <button class="btn-auth" style="margin-top: 15px; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #10b981;" onclick="window.open('#')"><i class="fas fa-download"></i> Tải Ngay (v3.1)</button>
+                            </div>
+                        </div>
+
+                        <div class="info-card hover-glow" style="border-top: 4px solid #3b82f6; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+                            <img src="https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&amp;w=2071&amp;auto=format&amp;fit=crop" alt="Mobile App" style="width: 100%; height: 160px; object-fit: cover;">
+                            <div style="padding: 20px; flex: 1; display: flex; flex-direction: column;">
+                                <div class="card-title">
+                                    <h4><i class="fab fa-android" style="color: #3b82f6;"></i> Aurora Injector (APK)
+                                    </h4>
+                                </div>
+                                <p class="desc-text" style="margin-top: 10px; flex: 1;">Ứng dụng Inject trực tiếp cho
+                                    điện thoại Android (Không cần Root). Quản lý menu trong game cực kỳ mượt mà.</p>
+                                <button class="btn-auth" style="margin-top: 15px; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: #3b82f6;" onclick="window.open('#')"><i class="fas fa-download"></i> Tải Ngay (APK)</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div id="contact-page" class="page-section" style="display: none;">
+                    <div class="section-header stagger-1">
+                        <h2 class="gradient-text"><i class="fas fa-headset"></i> LIÊN HỆ &amp; HỖ TRỢ</h2>
+                        <p class="desc-text">Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7. Hãy liên hệ qua các kênh dưới đây
+                            hoặc gửi tin nhắn trực tiếp.</p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;" class="stagger-2">
+
+                        <!-- Contact Info Cards -->
+                        <div style="display: flex; flex-direction: column; gap: 20px;">
+                            <div class="info-card hover-glow" style="border-left: 4px solid #3b82f6; display: flex; align-items: center; gap: 15px;">
+                                <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); display: flex; align-items: center; justify-content: center;">
+                                    <i class="fab fa-facebook-f" style="font-size: 1.5rem; color: #3b82f6;"></i>
+                                </div>
+                                <div>
+                                    <h4 style="margin: 0 0 5px 0; color: #fff;">Fanpage Facebook</h4>
+                                    <p style="margin: 0; color: #9ca3af; font-size: 0.9rem;">fb.com/TheGhostCoder</p>
+                                </div>
+                                <button class="btn-auth" style="margin-left: auto; width: auto; padding: 5px 15px; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: #3b82f6;" onclick="window.open('https://www.facebook.com/nguyen.quoc.duy.515067/', '_blank')">Nhắn
+                                    tin</button>
+                            </div>
+
+
+
+                            <div class="info-card hover-glow" style="border-left: 4px solid #10b981; display: flex; align-items: center; gap: 15px;">
+                                <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(16, 185, 129, 0.1); display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-phone-alt" style="font-size: 1.5rem; color: #10b981;"></i>
+                                </div>
+                                <div>
+                                    <h4 style="margin: 0 0 5px 0; color: #fff;">Zalo Hỗ Trợ</h4>
+                                    <p style="margin: 0; color: #9ca3af; font-size: 0.9rem;">0347784189</p>
+                                </div>
+                                <button class="btn-auth" style="margin-left: auto; width: auto; padding: 5px 15px; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #10b981;" onclick="window.open('https://zalo.me/0347784189', '_blank')">Kết bạn Zalo</button>
+                            </div>
+
+                            <div class="info-card hover-glow" style="border-left: 4px solid #8b5cf6; display: flex; align-items: center; gap: 15px;">
+                                <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(139, 92, 246, 0.1); display: flex; align-items: center; justify-content: center;">
+                                    <i class="fab fa-discord" style="font-size: 1.5rem; color: #8b5cf6;"></i>
+                                </div>
+                                <div>
+                                    <h4 style="margin: 0 0 5px 0; color: #fff;">Cộng Đồng Discord</h4>
+                                    <p style="margin: 0; color: #9ca3af; font-size: 0.9rem;">discord.gg/theghost</p>
+                                </div>
+                                <button class="btn-auth" style="margin-left: auto; width: auto; padding: 5px 15px; background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.3); color: #8b5cf6;" onclick="window.open('https://discord.gg/aVxJHMXa', '_blank')">Tham gia</button>
+                            </div>
+                        </div>
+
+                        <!-- Contact Form -->
+                        <div class="info-card hover-glow form-container" style="background: rgba(17, 24, 39, 0.8);">
+                            <h3 style="margin: 0 0 20px 0; color: #fff; font-size: 1.2rem;">Gửi Tin Nhắn Cho Chúng Tôi
+                            </h3>
+                            <div class="input-group">
+                                <i class="fas fa-user"></i>
+                                <input type="text" placeholder="Tên của bạn">
+                            </div>
+                            <div class="input-group">
+                                <i class="fas fa-envelope"></i>
+                                <input type="email" placeholder="Email liên hệ">
+                            </div>
+                            <div class="input-group" style="align-items: flex-start;">
+                                <i class="fas fa-comment-alt" style="margin-top: 15px;"></i>
+                                <textarea placeholder="Nội dung cần hỗ trợ..." style="min-height: 100px; width: 100%; background: transparent; border: none; color: white; padding: 12px 15px 12px 40px; font-family: inherit; resize: vertical; outline: none;"></textarea>
+                            </div>
+                            <button class="btn-auth" onclick="showToast('Tin nhắn đã được gửi thành công. Admin sẽ phản hồi qua Email của bạn!')"><i class="fas fa-paper-plane"></i> Gửi Tin Nhắn</button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <button class="floating-chat-btn" onclick="toggleChat()" data-i18n="chat_btn">
+                <i class="fas fa-wand-magic-sparkles"></i> Chat Hỗ Trợ AI
+            </button>
+            <div id="ai-chat-box" class="chat-box-container" style="display: none;">
+                <div class="chat-header">
+                    <div class="chat-header-info">
+                        <img src="logo.png" alt="AI">
+                        <div>
+                            <h4>Ghost AI Support</h4>
+                            <p>Trực tuyến</p>
+                        </div>
+                    </div>
+                    <button class="close-chat" onclick="toggleChat()">×</button>
+                </div>
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message bot-msg">
+                        <div class="msg-bubble">Xin chào! Mình là Trợ lý AI của TheGhost Coder. Mình đã nắm rõ giá
+                            Aimbot, các loại Key và cách nạp tiền. Bạn cần hỗ trợ gì ạ?</div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Nhập câu hỏi của bạn..." onkeypress="handleChatEnter(event)">
+                    <button onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast-container"></div>
+    <div id="auth-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card glass-panel">
+            <button class="close-modal" onclick="closeModal()">×</button>
+            <div class="modal-logo-wrap"><img src="logo.png" class="modal-logo"></div>
+
+            <form id="login-form" onsubmit="handleAuth(event, 'login')">
+                <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
+                <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="login-email" placeholder="Email" required=""></div>
+                <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="login-password" placeholder="Mật khẩu" required=""></div>
+                <button type="submit" class="btn-auth">ĐĂNG NHẬP</button>
+                <p class="switch-form">Chưa có tài khoản? <a href="#" onclick="toggleForm('register')">Đăng ký ngay</a>
+                </p>
+            </form>
+
+            <form id="register-form" onsubmit="handleAuth(event, 'register')" style="display: none;">
+                <h2>ĐĂNG KÝ TÀI KHOẢN</h2>
+                <div class="input-group"><i class="fas fa-user"></i><input type="text" id="reg-username" placeholder="Tên hiển thị" required=""></div>
+                <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="reg-email" placeholder="Gmail thật" required=""></div>
+                <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="reg-password" placeholder="Mật khẩu" required=""></div>
+                <button type="submit" class="btn-auth">TẠO TÀI KHOẢN</button>
+                <p class="switch-form">Đã có tài khoản? <a href="#" onclick="toggleForm('login')">Đăng nhập</a></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="topup-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card glass-panel" style="width: 580px; max-width: 95vw;">
+            <button class="close-modal" onclick="closeTopupModal()">×</button>
+            <h2 class="gradient-text" style="text-align:center; margin-bottom: 20px;"><i class="fas fa-wallet"></i> CỔNG
+                NẠP AUTO</h2>
+
+            <div class="modal-tabs">
+                <button class="tab-btn active" id="btn-tab-bank" onclick="switchTopupTab('bank')"><i class="fas fa-qrcode"></i> QR Chuyển Khoản (SePay)</button>
+                <button class="tab-btn" id="btn-tab-card" onclick="switchTopupTab('card')"><i class="fas fa-credit-card"></i> Thẻ Cào Tự Động</button>
+            </div>
+
+            <div id="tab-bank" class="tab-content active">
+                <div class="input-group" style="margin-bottom: 12px;">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <input type="number" id="bank-amount-input" placeholder="Nhập số tiền muốn nạp (Ví dụ: 100000)" oninput="updateSePayQR()">
+                </div>
+
+                <div class="quick-amounts">
+                    <button type="button" class="amount-btn" onclick="setAmount(10000, this)">10k</button>
+                    <button type="button" class="amount-btn" onclick="setAmount(20000, this)">20k</button>
+                    <button type="button" class="amount-btn" onclick="setAmount(50000, this)">50k</button>
+                    <button type="button" class="amount-btn" onclick="setAmount(100000, this)">100k</button>
+                    <button type="button" class="amount-btn" onclick="setAmount(200000, this)">200k</button>
+                    <button type="button" class="amount-btn" onclick="setAmount(500000, this)">500k</button>
+                </div>
+
+                <div class="sepay-flex-box">
+                    <div class="qr-code-zone">
+                        <img id="sepay-qr-img" src="https://img.vietqr.io/image/MB-6004012002-qr_only.png?accountName=NGUYEN%20QUOC%20DUY&amp;addInfo=TGCODER%20GUEST" alt="Mã QR Nạp Tiền">
+                    </div>
+
+                    <div class="bank-details">
+                        <p>Ngân hàng: <strong>MB BANK</strong></p>
+                        <p>Chủ tài khoản: <strong>NGUYEN QUOC DUY</strong></p>
+                        <p class="account-number">STK: <span id="stk-val">6004012002</span> <i class="fas fa-copy" onclick="copyText('6004012002')" title="Sao chép STK"></i></p>
+                        <p>Nội dung nạp: <strong class="text-warning" id="sub-content-val">TGCODER GUEST</strong> <i class="fas fa-copy" onclick="copyContentCode()" title="Sao chép Nội dung"></i></p>
+                    </div>
+                </div>
+                <p class="bank-note"><i class="fas fa-shield-alt"></i> Hệ thống SePay quét giao dịch tự động. Điền đúng
+                    nội dung tiền sẽ vào tài khoản sau 10 giây.</p>
+            </div>
+
+            <div id="tab-card" class="tab-content" style="display: none;">
+                <form id="card-topup-form" onsubmit="handleCardTopup(event)">
+                    <div class="input-group">
+                        <i class="fas fa-list"></i>
+                        <select id="card-type" class="custom-select" required="">
+                            <option value="">-- Chọn nhà mạng --</option>
+                            <option value="VIETTEL">Viettel</option>
+                            <option value="MOBIFONE">Mobifone</option>
+                            <option value="VINAPHONE">Vinaphone</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <i class="fas fa-tags"></i>
+                        <select id="card-amount" class="custom-select" required="">
+                            <option value="">-- Chọn mệnh giá thẻ --</option>
+                            <option value="10000">10.000đ</option>
+                            <option value="20000">20.000đ</option>
+                            <option value="50000">50.000đ</option>
+                            <option value="100000">100.000đ</option>
+                            <option value="200000">20.000đ</option>
+                            <option value="500000">500.000đ</option>
+                        </select>
+                    </div>
+                    <div class="input-group"><i class="fas fa-barcode"></i><input type="text" id="card-serial" placeholder="Nhập số Seri thẻ" required=""></div>
+                    <div class="input-group"><i class="fas fa-key"></i><input type="text" id="card-code" placeholder="Nhập mã pin của thẻ" required=""></div>
+                    <button type="submit" class="btn-auth" id="btn-submit-card">GỬI THẺ LÊN HỆ THỐNG GẠCH</button>
+                </form>
+                <p class="bank-note" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); margin-top: 15px;">
+                    <i class="fas fa-exclamation-circle"></i> CHÚ Ý: Chọn sai mệnh giá thẻ cào tại cổng Thẻ Siêu Tốc sẽ
+                    bị phạt mất 100% giá trị thẻ.
+                </p>
+            </div>
+        </div>
+    </div>
+    <script src="./index/script.js?v=3"></script>
+    <script src="./index/security.js"></script>
+</body></html>

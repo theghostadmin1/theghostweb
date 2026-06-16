@@ -1,0 +1,50 @@
+/* ==========================================
+   GIAO DIỆN BỔ SUNG CHO ADMIN PANEL (style.css đã có sẵn khung)
+========================================== */
+
+/* Nút thao tác riêng của Admin */
+.btn-admin-action {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #a78bfa;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    font-family: inherit;
+}
+
+.btn-admin-action:hover {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* Khoảng cách rộng rãi đặc thù cho bảng admin */
+.custom-table th {
+    background: rgba(139, 92, 246, 0.08) !important;
+    border-bottom: 2px solid rgba(139, 92, 246, 0.2) !important;
+}
+
+.custom-table td {
+    padding: 20px 15px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Thiết lập các Tab Quản Trị */
+.page-section {
+    display: none;
+    animation: slideUpFade 0.4s ease-out forwards;
+}
+
+.page-section.active {
+    display: block;
+}
+
+/* Kiểu chữ in đậm nổi bật cho số dư ví */
+.font-weight-bold {
+    font-weight: 700;
+}
