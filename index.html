@@ -139,7 +139,14 @@
             
             // Gọi API kiểm tra số dư và dữ liệu mới
             fetch(API_URL + '/user-data/' + CURRENT_USER_ID)
-                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 404) {
+                        localStorage.removeItem('savedUser');
+                        CURRENT_USER_ID = 'guest';
+                        location.reload();
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     if (data && typeof data.balance === 'number') {
                         // Nếu phát hiện có sự thay đổi số dư (tăng hoặc giảm)
