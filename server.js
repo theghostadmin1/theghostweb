@@ -550,35 +550,36 @@ app.post('/api/buy', async (req, res) => {
         const product = await Product.findOne({ name: productName });
         if (!product) return res.status(404).json({ message: "Sản phẩm không tồn tại!" });
 
-        let finalPrice = product.price;
-        let pkgName = "";
         let queryCondition = { productId: product._id, status: 'unsold' };
+        let pkgName = "";
 
         if (packageId) {
             const parts = packageId.split('|');
             if (parts.length === 2) {
                 const duration = parts[0];
-                finalPrice = parseInt(parts[1]) || product.price;
                 pkgName = " - " + duration;
                 queryCondition.duration = duration;
-                queryCondition.price = finalPrice;
             } else {
                 const pkg = product.packages.find(p => p._id.toString() === packageId);
                 if (pkg) {
-                    finalPrice = pkg.price;
                     pkgName = " - " + pkg.name;
                     queryCondition.packageId = packageId;
                 }
             }
         }
 
-        const totalCost = finalPrice * buyQuantity;
-        if (user.balance < totalCost) return res.status(400).json({ message: "Số dư không đủ. Vui lòng nạp thêm!" });
-
         const keysAvailable = await Key.find(queryCondition).limit(buyQuantity);
         if (keysAvailable.length < buyQuantity) {
             return res.status(400).json({ message: `Sản phẩm hiện đang tạm hết key (Chỉ còn ${keysAvailable.length} key). Vui lòng liên hệ Admin!` });
         }
+
+        let finalPrice = product.price;
+        if (keysAvailable[0].price !== undefined && keysAvailable[0].price !== null && keysAvailable[0].price !== 0) {
+            finalPrice = keysAvailable[0].price;
+        }
+
+        const totalCost = finalPrice * buyQuantity;
+        if (user.balance < totalCost) return res.status(400).json({ message: "Số dư không đủ. Vui lòng nạp thêm!" });
 
         user.balance -= totalCost;
         await user.save();
