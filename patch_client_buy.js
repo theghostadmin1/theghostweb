@@ -215,10 +215,8 @@ async function executeAdvancedBuy() {
         const data = await response.json();
         if (response.ok) {
             showToast(data.message);
-            updateBalanceUI(data.balance);
             closeAdvancedBuyModal();
-            fetchOrders();
-            fetchHistory();
+            if (typeof loadUserData === 'function') loadUserData(CURRENT_USER_ID);
         } else {
             showToast("Lỗi: " + data.message);
         }
