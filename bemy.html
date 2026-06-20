@@ -6,7 +6,7 @@
     const originalFetch = window.fetch;
     window.fetch = function() {
         if (arguments[0] && typeof arguments[0] === 'string') {
-            arguments[0] = arguments[0].replace("http://localhost:5000", "");
+            arguments[0] = arguments[0].replace("https://nroghost.com", "");
         }
         return originalFetch.apply(this, arguments);
     };
@@ -60,7 +60,7 @@
     const origFetchAdmin = window.fetch;
     window.fetch = async function() {
         if (arguments[0] && typeof arguments[0] === 'string') {
-            arguments[0] = arguments[0].replace("http://localhost:5000", "");
+            arguments[0] = arguments[0].replace("https://nroghost.com", "");
         }
         
         const url = arguments[0];
@@ -81,7 +81,7 @@
 </head>
 <body>
     <script src="./index/render_bemy.js"></script>
-    <script src="./index/admin_script_v5.js?v=6"></script>
+    <script src="./index/admin_script_v5.js?v=7"></script>
     <script src="./index/security.js" defer></script>
 </body>
 </html>
