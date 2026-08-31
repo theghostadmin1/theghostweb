@@ -171,7 +171,11 @@ async function fetchUsers() {
                 : '<span class="badge status-success">Hoạt động</span>';
             const resellerBadge = (user.isReseller || user.discountPercent > 0)
                 ? `<span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 800; border: none; margin-left: 5px;">SELL -${user.discountPercent || 0}%</span>`
-                : '<span class="badge" style="background: rgba(255,255,255,0.06); color: #9ca3af; border: 1px solid rgba(255,255,255,0.1); margin-left: 5px;">Thường</span>';
+                : '';
+            const vipBadge = user.isVip
+                ? '<span class="badge" style="background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; font-weight: 800; border: none; margin-left: 5px;"><i class="fas fa-gem"></i> VIP</span>'
+                : '';
+            const rankBadges = (vipBadge + resellerBadge) || '<span class="badge" style="background: rgba(255,255,255,0.06); color: #9ca3af; border: 1px solid rgba(255,255,255,0.1); margin-left: 5px;">Thường</span>';
 
             const actionBtn = user.locked
                 ? `<button class="btn-admin-action btn-unlock-user" onclick="executeUnlockUser('${user.username}')" style="background: rgba(16,185,129,0.1); color: #10b981; margin-left: 6px;"><i class="fas fa-user-check"></i> Mở Khóa</button>`
@@ -182,9 +186,10 @@ async function fetchUsers() {
                     <td><span class="order-id">${user.username}</span></td>
                     <td>${user.email}</td>
                     <td class="text-primary font-weight-bold" id="user-balance-${user.username}">${user.balance.toLocaleString()}đ</td>
-                    <td>${statusBadge} ${resellerBadge}</td>
+                    <td>${statusBadge} ${rankBadges}</td>
                     <td style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
                         <button class="btn-admin-action btn-add-money" onclick="openBalanceModal('${user.username}')"><i class="fas fa-plus-circle"></i> Nạp/Trừ</button>
+                        <button class="btn-admin-action" onclick="toggleUserVip('${user.username}', ${!user.isVip})" style="background: rgba(168,85,247,0.18); color: #e9d5ff; border-color: rgba(168,85,247,0.4);"><i class="fas fa-gem"></i> ${user.isVip ? 'Gỡ VIP' : 'Cấp VIP'}</button>
                         <button class="btn-admin-action" onclick="openResellerModal('${user.username}', ${!!user.isReseller}, ${user.discountPercent || 0})" style="background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.35);"><i class="fas fa-crown"></i> Cấp Sell</button>
                         ${actionBtn}
                     </td>
@@ -1823,6 +1828,22 @@ function injectNewsAdminUI() {
     }
 }
 
+async function toggleUserVip(username, isVip) {
+    try {
+        const res = await fetch(`${API_URL}/admin/users/${encodeURIComponent(username)}/vip`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isVip: !!isVip })
+        });
+        const data = await res.json();
+        showToast(data.message || 'Đã cập nhật VIP!');
+        fetchUsers();
+    } catch (e) {
+        showToast('Lỗi khi cấp VIP!');
+    }
+}
+
+window.toggleUserVip = toggleUserVip;
 window.openResellerModal = openResellerModal;
 window.closeResellerModal = closeResellerModal;
 window.executeSaveReseller = executeSaveReseller;

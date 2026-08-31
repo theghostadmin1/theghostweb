@@ -189,7 +189,8 @@ const UserSchema = new mongoose.Schema({
     balance: { type: Number, default: 0 },
     locked: { type: Boolean, default: false },
     isReseller: { type: Boolean, default: false },
-    discountPercent: { type: Number, default: 0 } // Giảm giá riêng cho Sell/CTV (0-100%)
+    discountPercent: { type: Number, default: 0 },
+    isVip: { type: Boolean, default: false }
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -1157,6 +1158,26 @@ app.put('/api/admin/users/:username/reseller', async (req, res) => {
     }
 });
 
+app.put('/api/admin/users/:username/vip', async (req, res) => {
+    try {
+        const username = req.params.username;
+        const active = !!req.body.isVip;
+        const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const user = await User.findOneAndUpdate(
+            { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+            { isVip: active },
+            { new: true }
+        );
+        if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
+        res.status(200).json({
+            message: active ? `Đã cấp logo VIP cho ${user.username}!` : `Đã gỡ VIP của ${user.username}.`,
+            user
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Admin mở khóa tài khoản
 app.put('/api/admin/users/:username/unlock', async (req, res) => {
     try {
@@ -1221,7 +1242,7 @@ app.get('/api/user-data/:username', async (req, res) => {
         const username = req.params.username;
         const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const user = await User.findOne({ username: { $regex: new RegExp(`^${escaped}$`, 'i') } })
-            .select('username balance isReseller discountPercent')
+            .select('username balance isReseller discountPercent isVip')
             .lean();
         if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
 
@@ -1236,6 +1257,7 @@ app.get('/api/user-data/:username', async (req, res) => {
             balance: user.balance,
             isReseller: !!user.isReseller || (user.discountPercent > 0),
             discountPercent: user.discountPercent || 0,
+            isVip: !!user.isVip,
             orders: orders,
             history: history
         });
@@ -1445,7 +1467,8 @@ app.post('/api/login', rateLimit(15 * 60 * 1000, 10), async (req, res) => {
             username: user.username,
             balance: user.balance,
             isReseller: !!user.isReseller || (user.discountPercent > 0),
-            discountPercent: user.discountPercent || 0
+            discountPercent: user.discountPercent || 0,
+            isVip: !!user.isVip
         });
     } catch (error) {
         res.status(500).json({ message: error.message });

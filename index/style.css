@@ -90,6 +90,29 @@ img {
 .custom-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: contain; background: #111118; border: 1px solid var(--primary-color); padding: 4px; transition: 0.4s; }
 .user-info:hover .custom-avatar { transform: scale(1.15) rotate(5deg); border-color: var(--secondary-color); }
 .username { font-weight: 700; font-size: 0.95rem; }
+.header-vip-badge,
+.vip-rank {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 5px;
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+    color: #fff !important;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    line-height: 1;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
+}
+.vip-rank {
+    font-size: 1.15rem;
+    padding: 6px 12px;
+    background: none;
+    color: #e9d5ff !important;
+    box-shadow: none;
+}
+.vip-rank i { color: #c084fc; }
 .header-sell-badge,
 .sell-rank {
     display: inline-flex !important;

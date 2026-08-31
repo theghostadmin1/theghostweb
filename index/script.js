@@ -437,6 +437,7 @@ async function loadClientProducts() {
 // ==========================================
 let CURRENT_USER_IS_RESELLER = false;
 let CURRENT_USER_DISCOUNT = 0;
+let CURRENT_USER_IS_VIP = false;
 let currentAppliedCoupon = null; // { code, discountPercent }
 let lastKnownBalance = -1;
 let balancePollBusy = false;
@@ -598,6 +599,7 @@ async function loadUserData(username) {
 
         CURRENT_USER_IS_RESELLER = !!data.isReseller || (data.discountPercent > 0);
         CURRENT_USER_DISCOUNT = data.discountPercent || 0;
+        CURRENT_USER_IS_VIP = !!data.isVip;
         applyResellerBadge();
 
         document.getElementById('header-balance').innerText = data.balance.toLocaleString() + "đ";
@@ -793,6 +795,7 @@ function toggleForm(type) {
 
 function applyResellerBadge() {
     const isSell = CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0;
+    const isVip = !!CURRENT_USER_IS_VIP;
     let rank = document.getElementById('stat-member');
     if (!rank) {
         const grid = document.getElementById('guest-stats-grid');
@@ -803,7 +806,13 @@ function applyResellerBadge() {
         }
     }
     if (rank) {
-        if (isSell) {
+        if (isVip && isSell) {
+            rank.className = 'gradient-text vip-rank';
+            rank.innerHTML = '<i class="fas fa-gem"></i> VIP <span class="header-sell-badge" style="margin-left:6px;"><i class="fas fa-crown"></i> SELL</span>';
+        } else if (isVip) {
+            rank.className = 'gradient-text vip-rank';
+            rank.innerHTML = '<i class="fas fa-gem"></i> VIP';
+        } else if (isSell) {
             rank.className = 'gradient-text sell-rank';
             rank.innerHTML = '<i class="fas fa-crown"></i> SELL';
         } else {
@@ -813,15 +822,31 @@ function applyResellerBadge() {
     }
     const label = rank && rank.parentElement ? rank.parentElement.querySelector('p') : null;
     if (label) {
-        label.textContent = isSell ? ('Đại lý -' + CURRENT_USER_DISCOUNT + '%') : 'Thành viên';
+        if (isVip && isSell) label.textContent = 'VIP + Đại lý -' + CURRENT_USER_DISCOUNT + '%';
+        else if (isVip) label.textContent = 'Thành viên VIP';
+        else if (isSell) label.textContent = 'Đại lý -' + CURRENT_USER_DISCOUNT + '%';
+        else label.textContent = 'Thành viên';
     }
-    let headerBadge = document.getElementById('header-sell-badge');
     const nameEl = document.getElementById('display-username');
     if (nameEl && nameEl.parentElement) {
+        let headerVip = document.getElementById('header-vip-badge');
+        if (!headerVip) {
+            headerVip = document.createElement('span');
+            headerVip.id = 'header-vip-badge';
+            nameEl.insertAdjacentElement('afterend', headerVip);
+        }
+        if (isVip) {
+            headerVip.className = 'header-vip-badge';
+            headerVip.innerHTML = '<i class="fas fa-gem"></i> VIP';
+            headerVip.style.display = 'inline-flex';
+        } else {
+            headerVip.style.display = 'none';
+        }
+        let headerBadge = document.getElementById('header-sell-badge');
         if (!headerBadge) {
             headerBadge = document.createElement('span');
             headerBadge.id = 'header-sell-badge';
-            nameEl.insertAdjacentElement('afterend', headerBadge);
+            headerVip.insertAdjacentElement('afterend', headerBadge);
         }
         if (isSell) {
             headerBadge.className = 'header-sell-badge';
@@ -842,6 +867,7 @@ function applyLoginState(username, extra) {
     if (extra) {
         CURRENT_USER_IS_RESELLER = !!extra.isReseller || (extra.discountPercent > 0);
         CURRENT_USER_DISCOUNT = extra.discountPercent || 0;
+        CURRENT_USER_IS_VIP = !!extra.isVip;
         applyResellerBadge();
     }
     updateSePayQR();
@@ -904,6 +930,7 @@ function logout() {
     CURRENT_USER_ID = "guest";
     CURRENT_USER_IS_RESELLER = false;
     CURRENT_USER_DISCOUNT = 0;
+    CURRENT_USER_IS_VIP = false;
     applyResellerBadge();
     sessionStorage.removeItem('THEGHOST_SAVED_USER');
     stopBalanceLive();
