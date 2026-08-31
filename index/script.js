@@ -360,7 +360,8 @@ async function loadClientProducts() {
 
         products.forEach(prod => {
             const prodImg = resolveClientDownloadImage(prod.imageUrl);
-            const tag = prod.category === 'cheat' ? 'AIMBOT AURORAVN' : (prod.category === 'acc' ? 'TÀI KHOẢN GAME' : 'TOOL VIP');
+            const tag = (prod.tag && String(prod.tag).trim())
+                || (prod.category === 'cheat' ? 'AIMBOT AURORAVN' : (prod.category === 'acc' ? 'TÀI KHOẢN GAME' : 'TOOL VIP'));
             
             // Format bullet points from description
             const rawDesc = prod.description || 'Sản phẩm uy tín, an toàn 100% từ hệ thống TheGhost.';

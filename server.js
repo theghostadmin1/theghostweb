@@ -456,6 +456,7 @@ const ProductSchema = new mongoose.Schema({
     isDiscountable: { type: Boolean, default: true }, // Có cho phép áp dụng giảm giá / Coupon / Sell hay không
     description: { type: String, default: 'Sản phẩm uy tín, an toàn 100% từ hệ thống TheGhost.' },
     imageUrl: { type: String, default: '' },
+    tag: { type: String, default: '' },
     isHot: { type: Boolean, default: false },
     status: { type: String, default: 'ON' },
     dateAdded: { type: Date, default: Date.now }
@@ -676,7 +677,7 @@ app.post('/api/products/:id/keys', requireAdmin, async (req, res) => {
 
 app.post('/api/products', requireAdmin, async (req, res) => {
     try {
-        const { name, category, price, originalPrice, isDiscountable, description, isHot, imageUrl } = req.body;
+        const { name, category, price, originalPrice, isDiscountable, description, isHot, imageUrl, tag } = req.body;
         const newProduct = new Product({
             name,
             category,
@@ -685,7 +686,8 @@ app.post('/api/products', requireAdmin, async (req, res) => {
             isDiscountable: isDiscountable !== undefined ? !!isDiscountable : true,
             description,
             isHot: !!isHot,
-            imageUrl
+            imageUrl,
+            tag: String(tag || '').trim()
         });
         await newProduct.save();
         res.status(201).json({ message: "Thêm sản phẩm vào Database thành công!", product: newProduct });
@@ -715,6 +717,7 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
         if (req.body.imageUrl !== undefined) updateData.imageUrl = req.body.imageUrl;
         if (req.body.category !== undefined) updateData.category = req.body.category;
         if (req.body.isHot !== undefined) updateData.isHot = !!req.body.isHot;
+        if (req.body.tag !== undefined) updateData.tag = String(req.body.tag || '').trim();
         
         await Product.findByIdAndUpdate(req.params.id, updateData);
         res.status(200).json({ message: "Cập nhật sản phẩm thành công!" });
@@ -740,7 +743,7 @@ function listDownloadImages() {
     return Array.from(files);
 }
 
-app.get('/api/download-images', requireAdmin, (req, res) => {
+app.get('/api/download-images', (req, res) => {
     try {
         res.status(200).json({ files: listDownloadImages() });
     } catch (error) {

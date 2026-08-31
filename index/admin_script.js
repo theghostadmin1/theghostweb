@@ -376,6 +376,18 @@ function showProductModalEl() {
     return modal;
 }
 
+const DEFAULT_IMG_LIBRARY = [
+    '/Img/aurora.png',
+    '/Img/Bypass.png',
+    '/Img/Blue.png',
+    '/Img/MSI.png',
+    '/Img/anti_vius.png',
+    '/Img/file_game.png',
+    '/Img/setup_driver.png',
+    '/src/IMG/cover.jpg',
+    '/src/IMG/default.svg'
+];
+
 async function loadProductImageOptions(selectId, selected) {
     const select = document.getElementById(selectId);
     if (!select) return;
@@ -386,7 +398,7 @@ async function loadProductImageOptions(selectId, selected) {
         const data = await res.json();
         const files = Array.isArray(data.files) ? data.files : [];
         select.innerHTML = '';
-        const list = files.length ? files : [fallback];
+        const list = files.length ? files : DEFAULT_IMG_LIBRARY;
         list.forEach(file => {
             const opt = document.createElement('option');
             opt.value = file;
@@ -402,9 +414,14 @@ async function loadProductImageOptions(selectId, selected) {
             select.appendChild(opt);
         }
     } catch (e) {
-        if (!select.options.length) {
-            select.innerHTML = `<option value="${fallback}">cover.jpg</option>`;
-        }
+        select.innerHTML = '';
+        DEFAULT_IMG_LIBRARY.forEach(file => {
+            const opt = document.createElement('option');
+            opt.value = file;
+            opt.textContent = file.split('/').pop();
+            if (file === current) opt.selected = true;
+            select.appendChild(opt);
+        });
     }
 }
 
@@ -421,7 +438,9 @@ async function openAddProductModal() {
         document.getElementById('pm-allow-discount').checked = true;
         document.getElementById('pm-desc').value = '';
         document.getElementById('pm-ishot').checked = false;
-        await loadProductImageOptions('pm-img', '/src/IMG/cover.jpg');
+        const tagEl = document.getElementById('pm-tag');
+        if (tagEl) tagEl.value = '';
+        await loadProductImageOptions('pm-img', '/Img/aurora.png');
     } catch (e) {
         console.error(e);
         showToast('Không mở được form thêm sản phẩm!');
@@ -449,6 +468,8 @@ async function openEditFullProductModal(id) {
         document.getElementById('pm-allow-discount').checked = prod.isDiscountable !== false;
         document.getElementById('pm-desc').value = prod.description || '';
         document.getElementById('pm-ishot').checked = !!prod.isHot;
+        const tagEl = document.getElementById('pm-tag');
+        if (tagEl) tagEl.value = prod.tag || '';
         await loadProductImageOptions('pm-img', prod.imageUrl);
     } catch (e) {
         console.error(e);
@@ -473,6 +494,7 @@ async function executeSaveFullProduct() {
     const description = document.getElementById('pm-desc').value;
     const isHot = document.getElementById('pm-ishot').checked;
     const imageUrl = document.getElementById('pm-img').value;
+    const tag = document.getElementById('pm-tag') ? document.getElementById('pm-tag').value.trim() : '';
 
     if (!name || !price) return showToast('Vui lòng nhập Tên và Giá sản phẩm!');
 
@@ -484,7 +506,8 @@ async function executeSaveFullProduct() {
         isDiscountable,
         description,
         isHot,
-        imageUrl
+        imageUrl,
+        tag
     };
 
     try {
@@ -551,7 +574,13 @@ function injectFullProductModal() {
                     <div style="flex: 1;">
                         <label style="color:#ccc; font-size:0.85rem; display:block; margin-bottom:6px;">Ảnh đại diện (Thư mục Img)</label>
                         <select id="pm-img" class="admin-input" style="width:100%; padding:10px; background:#0d0d14; color:#fff; border:1px solid #7c3aed; border-radius:8px;"></select>
+                        <input type="file" id="pm-img-file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="width:100%; margin-top:8px; color:#ccc; font-size:0.8rem;">
                     </div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="color:#ccc; font-size:0.85rem; display:block; margin-bottom:6px;">Tag (hiện trên card shop)</label>
+                    <input type="text" id="pm-tag" class="admin-input" placeholder="VD: AIMBOT AURORAVN" style="width:100%; padding:10px; background:#0d0d14; color:#fff; border:1px solid #333; border-radius:8px;">
                 </div>
 
                 <div style="display: flex; gap: 15px; margin-bottom: 15px;">
@@ -591,6 +620,21 @@ function injectFullProductModal() {
         </div>
     `;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const fileEl = document.getElementById('pm-img-file');
+    if (fileEl && !fileEl.dataset.bound) {
+        fileEl.dataset.bound = '1';
+        fileEl.addEventListener('change', async () => {
+            const file = fileEl.files && fileEl.files[0];
+            if (!file) return;
+            try {
+                const url = await uploadDownloadImageFile(file);
+                await loadProductImageOptions('pm-img', url);
+                fileEl.value = '';
+            } catch (err) {
+                showToast(err.message || 'Tải ảnh thất bại');
+            }
+        });
+    }
 }
 
 window.openAddProductModal = openAddProductModal;
@@ -903,7 +947,7 @@ async function loadDownloadImageOptions(selected) {
     try {
         const res = await fetch(API_URL + '/download-images', { cache: 'no-store' });
         const data = await res.json();
-        const files = Array.isArray(data.files) ? data.files : [];
+        const files = Array.isArray(data.files) && data.files.length ? data.files : DEFAULT_IMG_LIBRARY;
         const current = resolveDownloadImage(selected || select.value);
         select.innerHTML = '';
         
