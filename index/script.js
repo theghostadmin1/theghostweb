@@ -389,7 +389,7 @@ async function loadClientProducts() {
                         </div>
                     </div>
                     <div class="prod-card-body">
-                        <span class="prod-card-tag"><i class="fas fa-circle" style="font-size: 6px;"></i> ${tag}</span>
+                        <span class="prod-card-tag"><span class="prod-card-tag-dot"></span>${tag}</span>
                         <h3 class="prod-card-title">${prod.name}</h3>
                         
                         <div class="prod-card-features">
