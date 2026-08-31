@@ -596,8 +596,9 @@ async function loadUserData(username) {
         const data = await res.json();
         if (seq !== userDataSeq) return;
 
-        CURRENT_USER_IS_RESELLER = !!data.isReseller;
+        CURRENT_USER_IS_RESELLER = !!data.isReseller || (data.discountPercent > 0);
         CURRENT_USER_DISCOUNT = data.discountPercent || 0;
+        applyResellerBadge();
 
         document.getElementById('header-balance').innerText = data.balance.toLocaleString() + "đ";
         document.getElementById('stat-balance').innerText = data.balance.toLocaleString() + "đ";
@@ -661,9 +662,8 @@ async function loadUserData(username) {
             });
         }
 
-        // Không cần gán display cho account-info-block nữa vì nó nằm ở #account-page
         const guestStats = document.getElementById('guest-stats-grid');
-        if (guestStats) guestStats.style.display = 'none';
+        if (guestStats) guestStats.style.display = 'grid';
 
         const accUsername = document.getElementById('acc-info-username');
         if (accUsername) accUsername.innerText = username;
@@ -791,12 +791,59 @@ function toggleForm(type) {
     document.getElementById('register-form').style.display = type === 'register' ? 'block' : 'none';
 }
 
-function applyLoginState(username) {
+function applyResellerBadge() {
+    const isSell = CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0;
+    let rank = document.getElementById('stat-member');
+    if (!rank) {
+        const grid = document.getElementById('guest-stats-grid');
+        const titles = grid ? grid.querySelectorAll('.stat-card h3') : [];
+        if (titles.length) {
+            rank = titles[titles.length - 1];
+            rank.id = 'stat-member';
+        }
+    }
+    if (rank) {
+        if (isSell) {
+            rank.className = 'gradient-text sell-rank';
+            rank.innerHTML = '<i class="fas fa-crown"></i> SELL';
+        } else {
+            rank.className = 'gradient-text';
+            rank.textContent = 'Member';
+        }
+    }
+    const label = rank && rank.parentElement ? rank.parentElement.querySelector('p') : null;
+    if (label) {
+        label.textContent = isSell ? ('Đại lý -' + CURRENT_USER_DISCOUNT + '%') : 'Thành viên';
+    }
+    let headerBadge = document.getElementById('header-sell-badge');
+    const nameEl = document.getElementById('display-username');
+    if (nameEl && nameEl.parentElement) {
+        if (!headerBadge) {
+            headerBadge = document.createElement('span');
+            headerBadge.id = 'header-sell-badge';
+            nameEl.insertAdjacentElement('afterend', headerBadge);
+        }
+        if (isSell) {
+            headerBadge.className = 'header-sell-badge';
+            headerBadge.innerHTML = '<i class="fas fa-crown"></i> SELL';
+            headerBadge.style.display = 'inline-flex';
+        } else {
+            headerBadge.style.display = 'none';
+        }
+    }
+}
+
+function applyLoginState(username, extra) {
     document.getElementById('guest-area').style.display = 'none';
     document.getElementById('logged-in-area').style.display = 'flex';
     document.getElementById('display-username').innerText = username;
     CURRENT_USER_ID = username;
     sessionStorage.setItem('THEGHOST_SAVED_USER', username);
+    if (extra) {
+        CURRENT_USER_IS_RESELLER = !!extra.isReseller || (extra.discountPercent > 0);
+        CURRENT_USER_DISCOUNT = extra.discountPercent || 0;
+        applyResellerBadge();
+    }
     updateSePayQR();
     loadUserData(username);
     startBalanceLive();
@@ -832,7 +879,7 @@ async function handleAuth(event, type) {
         if (response.ok) {
             showToast(data.message);
             closeModal();
-            applyLoginState(data.username || payload.username);
+            applyLoginState(data.username || payload.username, data);
         } else {
             showToast("Thất bại: " + data.message);
         }
@@ -855,6 +902,9 @@ function logout() {
     if (guestStats) guestStats.style.display = 'grid';
 
     CURRENT_USER_ID = "guest";
+    CURRENT_USER_IS_RESELLER = false;
+    CURRENT_USER_DISCOUNT = 0;
+    applyResellerBadge();
     sessionStorage.removeItem('THEGHOST_SAVED_USER');
     stopBalanceLive();
     showToast("Đã đăng xuất tài khoản!");
@@ -1410,7 +1460,8 @@ function updateBuyCalc() {
     let effectiveDiscountPercent = 0;
     let discountSource = '';
 
-    if (CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0) {
+    const productAllowsDiscount = !currentBuyProduct || currentBuyProduct.isDiscountable !== false;
+    if (productAllowsDiscount && CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0) {
         effectiveDiscountPercent = CURRENT_USER_DISCOUNT;
         discountSource = `SELL -${CURRENT_USER_DISCOUNT}%`;
     }

@@ -1135,18 +1135,22 @@ app.put('/api/admin/users/:username/reseller', async (req, res) => {
     try {
         const username = req.params.username;
         const { isReseller, discountPercent } = req.body;
-        const percent = Math.min(100, Math.max(0, Number(discountPercent) || 0));
+        let percent = Math.min(100, Math.max(0, Number(discountPercent) || 0));
+        let active = !!isReseller;
+        if (percent > 0) active = true;
+        if (active && percent <= 0) percent = 10;
 
+        const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const user = await User.findOneAndUpdate(
-            { username },
-            { isReseller: !!isReseller, discountPercent: percent },
+            { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+            { isReseller: active, discountPercent: percent },
             { new: true }
         );
         if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
         
-        const msg = isReseller 
-            ? `Đã nâng cấp ${username} thành SELL với mức chiết khấu ${percent}%!` 
-            : `Đã chuyển ${username} về tài khoản Thường!`;
+        const msg = active
+            ? `Đã nâng cấp ${user.username} thành SELL với mức chiết khấu ${percent}%!`
+            : `Đã chuyển ${user.username} về tài khoản Thường!`;
         res.status(200).json({ message: msg, user });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -1230,7 +1234,7 @@ app.get('/api/user-data/:username', async (req, res) => {
 
         res.status(200).json({
             balance: user.balance,
-            isReseller: !!user.isReseller,
+            isReseller: !!user.isReseller || (user.discountPercent > 0),
             discountPercent: user.discountPercent || 0,
             orders: orders,
             history: history
@@ -1247,7 +1251,8 @@ app.post('/api/buy', rateLimit(60 * 1000, 20), async (req, res) => {
         const buyQuantity = parseInt(quantity) || 1;
         if (buyQuantity <= 0) return res.status(400).json({ message: "Số lượng không hợp lệ!" });
 
-        const user = await User.findOne({ username });
+        const escapedBuyUser = String(username || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const user = await User.findOne({ username: { $regex: new RegExp(`^${escapedBuyUser}$`, 'i') } });
         if (!user) return res.status(404).json({ message: "Vui lòng đăng nhập lại!" });
         if (user.locked) return res.status(403).json({ message: "Tài khoản của bạn đã bị khóa!" });
 
@@ -1315,7 +1320,7 @@ app.post('/api/buy', rateLimit(60 * 1000, 20), async (req, res) => {
         const canDiscount = product.isDiscountable !== false;
 
         if (canDiscount) {
-            if (user.isReseller && user.discountPercent > 0) {
+            if ((user.isReseller || user.discountPercent > 0) && user.discountPercent > 0) {
                 discountPercent = user.discountPercent;
                 discountDesc = ` (Đại lý Sell giảm ${discountPercent}%)`;
             }
@@ -1341,7 +1346,7 @@ app.post('/api/buy', rateLimit(60 * 1000, 20), async (req, res) => {
         }
 
         const paidUser = await User.findOneAndUpdate(
-            { username, locked: { $ne: true }, balance: { $gte: totalCost } },
+            { username: user.username, locked: { $ne: true }, balance: { $gte: totalCost } },
             { $inc: { balance: -totalCost } },
             { new: true }
         );
@@ -1435,7 +1440,13 @@ app.post('/api/login', rateLimit(15 * 60 * 1000, 10), async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ message: "Sai mật khẩu!" });
 
-        res.status(200).json({ message: "Đăng nhập thành công!", username: user.username, balance: user.balance });
+        res.status(200).json({
+            message: "Đăng nhập thành công!",
+            username: user.username,
+            balance: user.balance,
+            isReseller: !!user.isReseller || (user.discountPercent > 0),
+            discountPercent: user.discountPercent || 0
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

@@ -90,6 +90,30 @@ img {
 .custom-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: contain; background: #111118; border: 1px solid var(--primary-color); padding: 4px; transition: 0.4s; }
 .user-info:hover .custom-avatar { transform: scale(1.15) rotate(5deg); border-color: var(--secondary-color); }
 .username { font-weight: 700; font-size: 0.95rem; }
+.header-sell-badge,
+.sell-rank {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 5px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #111 !important;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    line-height: 1;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+}
+.sell-rank {
+    font-size: 1.15rem;
+    padding: 6px 12px;
+    background: none;
+    color: #fbbf24 !important;
+    box-shadow: none;
+    letter-spacing: 0.04em;
+}
+.sell-rank i { color: #f59e0b; }
 .dropdown-menu { position: absolute; top: 120%; right: 0; background: rgba(17,17,24,0.95); backdrop-filter: blur(15px); border: 1px solid var(--primary-color); border-radius: 12px; width: 230px; padding: 10px 0; list-style: none; opacity: 0; visibility: hidden; transform: translateY(15px) scale(0.95); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 100; box-shadow: 0 15px 40px rgba(0,0,0,0.6);}
 .dropdown-menu.show { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
 .dropdown-menu li a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: var(--text-muted); text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: 0.3s; }

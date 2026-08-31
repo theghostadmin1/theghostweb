@@ -169,7 +169,7 @@ async function fetchUsers() {
             const statusBadge = user.locked
                 ? '<span class="badge status-pending" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2);">Đã Khóa</span>'
                 : '<span class="badge status-success">Hoạt động</span>';
-            const resellerBadge = user.isReseller
+            const resellerBadge = (user.isReseller || user.discountPercent > 0)
                 ? `<span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 800; border: none; margin-left: 5px;">SELL -${user.discountPercent || 0}%</span>`
                 : '<span class="badge" style="background: rgba(255,255,255,0.06); color: #9ca3af; border: 1px solid rgba(255,255,255,0.1); margin-left: 5px;">Thường</span>';
 
@@ -1232,8 +1232,8 @@ let currentResellerTargetUser = '';
 function openResellerModal(username, currentIsReseller, currentDiscount) {
     currentResellerTargetUser = username;
     document.getElementById('reseller-target-username').innerText = username;
-    document.getElementById('reseller-is-active').checked = !!currentIsReseller;
-    document.getElementById('reseller-discount-percent').value = currentDiscount || 0;
+    document.getElementById('reseller-is-active').checked = true;
+    document.getElementById('reseller-discount-percent').value = currentDiscount > 0 ? currentDiscount : 10;
     
     const modal = document.getElementById('admin-reseller-modal');
     if (!modal) return;
@@ -1250,8 +1250,9 @@ function closeResellerModal() {
 
 async function executeSaveReseller() {
     if (!currentResellerTargetUser) return;
-    const isReseller = document.getElementById('reseller-is-active').checked;
-    const discountPercent = parseInt(document.getElementById('reseller-discount-percent').value) || 0;
+    const checked = document.getElementById('reseller-is-active').checked;
+    let discountPercent = parseInt(document.getElementById('reseller-discount-percent').value, 10) || 0;
+    const isReseller = checked || discountPercent > 0;
 
     try {
         const res = await fetch(`${API_URL}/admin/users/${currentResellerTargetUser}/reseller`, {
