@@ -227,4 +227,7 @@
 }
 @media (max-width: 900px) {
     .coupon-stats { grid-template-columns: 1fr; }
+    .custom-table th, .custom-table td { padding: 12px 10px !important; font-size: 0.82rem; }
+    .btn-admin-action { font-size: 0.78rem; padding: 6px 8px; }
+    .modal-overlay .modal-card { width: calc(100vw - 20px) !important; max-height: 88dvh; overflow-y: auto; }
 }

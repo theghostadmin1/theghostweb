@@ -4,6 +4,34 @@
 const API_URL = "/api";
 let CURRENT_USER_ID = "guest"; // Mặc định chưa đăng nhập
 
+function closeMobileNav() {
+    document.body.classList.remove('nav-open');
+}
+function initMobileNav() {
+    if (document.getElementById('menu-toggle')) return;
+    const header = document.querySelector('.top-header');
+    if (!header) return;
+    const btn = document.createElement('button');
+    btn.id = 'menu-toggle';
+    btn.className = 'menu-toggle';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Mở menu');
+    btn.innerHTML = '<i class="fas fa-bars"></i>';
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        document.body.classList.toggle('nav-open');
+        btn.setAttribute('aria-label', document.body.classList.contains('nav-open') ? 'Đóng menu' : 'Mở menu');
+    });
+    header.insertBefore(btn, header.firstChild);
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    backdrop.addEventListener('click', closeMobileNav);
+    document.body.appendChild(backdrop);
+    document.querySelectorAll('.sidebar-nav a').forEach(function (a) {
+        a.addEventListener('click', closeMobileNav);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Menu Sidebar Active
     const sidebarLinks = document.querySelectorAll('.sidebar-nav li');
@@ -25,6 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     wireContactLinks();
     wireHomeQuickLinks();
+
+    initMobileNav();
 
     // 3. Hiển thị thông báo chào mừng
     showWelcomeModal();
@@ -746,6 +776,7 @@ function switchPage(pageId) {
     if (pageId === 'download' && typeof fetchClientDownloads === 'function') {
         fetchClientDownloads();
     }
+    closeMobileNav();
 }
 
 function scrollToProducts() {
