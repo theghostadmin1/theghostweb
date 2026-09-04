@@ -5,20 +5,26 @@
             input = input.replace('https://nroghost.com', '');
         }
         var url = typeof input === 'string' ? input : (input && input.url);
-        var options = init || {};
-        var response = await originalFetch(input, init);
-        if (typeof url === 'string' && options.method === 'POST' && /\/(login|register)$/.test(url.split('?')[0])) {
+        var options = Object.assign({}, init || {});
+        var path = String(url || '').split('?')[0];
+        var token = '';
+        try { token = sessionStorage.getItem('THEGHOST_SHOP_TOKEN') || ''; } catch (e) {}
+        if (token && String(url || '').indexOf('/api') !== -1 && !/\/(login|register)$/.test(path)) {
+            var headers = new Headers(options.headers || {});
+            if (!headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + token);
+            options.headers = headers;
+        }
+        var response = await originalFetch(input, options);
+        if (typeof url === 'string' && options.method === 'POST' && /\/(login|register)$/.test(path)) {
             var clone = response.clone();
             clone.json().then(function (data) {
-                if (response.ok && (data.username || (data.message && data.message.indexOf('thành công') !== -1))) {
-                    var userToSave = data.username;
-                    if (!userToSave && options.body) {
-                        try {
-                            var bodyObj = JSON.parse(options.body);
-                            userToSave = bodyObj.username || bodyObj.email;
-                        } catch (e) {}
+                if (response.ok && data) {
+                    if (data.token) {
+                        try { sessionStorage.setItem('THEGHOST_SHOP_TOKEN', data.token); } catch (e) {}
                     }
-                    if (userToSave) sessionStorage.setItem('THEGHOST_SAVED_USER', userToSave);
+                    if (data.username) {
+                        try { sessionStorage.setItem('THEGHOST_SAVED_USER', data.username); } catch (e) {}
+                    }
                 }
             }).catch(function () {});
         }
@@ -52,14 +58,28 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        var savedUser = sessionStorage.getItem('THEGHOST_SAVED_USER');
-        if (savedUser && typeof applyLoginState === 'function') {
-            applyLoginState(savedUser);
+        var token = '';
+        try { token = sessionStorage.getItem('THEGHOST_SHOP_TOKEN') || ''; } catch (e) {}
+        if (token && typeof applyLoginState === 'function') {
+            fetch('/api/shop/me').then(function (r) {
+                if (!r.ok) throw new Error('expired');
+                return r.json();
+            }).then(function (data) {
+                applyLoginState(data.username, data);
+            }).catch(function () {
+                try {
+                    sessionStorage.removeItem('THEGHOST_SHOP_TOKEN');
+                    sessionStorage.removeItem('THEGHOST_SAVED_USER');
+                } catch (e) {}
+            });
         }
         var origLogout = window.logout;
         if (typeof origLogout === 'function') {
             window.logout = function () {
-                sessionStorage.removeItem('THEGHOST_SAVED_USER');
+                try {
+                    sessionStorage.removeItem('THEGHOST_SAVED_USER');
+                    sessionStorage.removeItem('THEGHOST_SHOP_TOKEN');
+                } catch (e) {}
                 return origLogout.apply(this, arguments);
             };
         }

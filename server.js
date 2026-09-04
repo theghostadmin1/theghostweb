@@ -22,6 +22,8 @@ app.use((req, res, next) => {
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     res.setHeader('X-DNS-Prefetch-Control', 'off');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none'");
     next();
 });
 
@@ -694,6 +696,46 @@ function requireSell(req, res, next) {
     next();
 }
 
+const shopSessions = new Map();
+function createShopSession(username) {
+    const token = crypto.randomBytes(32).toString('hex');
+    shopSessions.set(token, { username, exp: Date.now() + 12 * 60 * 60 * 1000 });
+    return token;
+}
+function readAccessToken(req) {
+    const header = String(req.headers.authorization || '');
+    if (header.startsWith('Bearer ')) return header.slice(7).trim();
+    return String(req.query.access_token || '').trim();
+}
+function requireShop(req, res, next) {
+    const token = readAccessToken(req);
+    const session = token ? shopSessions.get(token) : null;
+    if (!session || session.exp < Date.now()) {
+        return res.status(401).json({ success: false, message: 'Phiên đăng nhập hết hạn. Đăng nhập lại.' });
+    }
+    req.shopUser = session.username;
+    next();
+}
+function requireSepayWebhook(req, res, next) {
+    const secret = String(process.env.SEPAY_WEBHOOK_SECRET || '').trim();
+    if (!secret) {
+        console.warn('⚠️  SEPAY_WEBHOOK_SECRET chưa set — webhook nạp đang mở. Thêm secret trên Render rồi gắn ?token= vào URL SePay.');
+        return next();
+    }
+    const candidates = [
+        String(req.query.token || ''),
+        String(req.headers['x-sepay-secret'] || ''),
+        String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').replace(/^Apikey\s+/i, '').trim()
+    ];
+    const ok = candidates.some(value => {
+        const a = Buffer.from(String(value));
+        const b = Buffer.from(secret);
+        return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
+    });
+    if (!ok) return res.status(401).send('Unauthorized');
+    next();
+}
+
 function isSellAccount(user) {
     return !!(user && (user.isReseller || (user.discountPercent > 0) || (Array.isArray(user.sellProductRates) && user.sellProductRates.length)));
 }
@@ -1352,9 +1394,9 @@ app.post('/api/chat', rateLimit(60 * 1000, 40), async (req, res) => {
     }
 });
 
-app.get('/api/balance-stream/:username', (req, res) => {
-    const username = req.params.username;
-    if (!username || username === 'guest') return res.status(400).end();
+app.get('/api/balance-stream', requireShop, (req, res) => {
+    const username = req.shopUser;
+    if (!username) return res.status(400).end();
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -1380,9 +1422,9 @@ app.get('/api/balance-stream/:username', (req, res) => {
     });
 });
 
-app.get('/api/user-data/:username', async (req, res) => {
+app.get('/api/user-data/:username', requireShop, async (req, res) => {
     try {
-        const username = req.params.username;
+        const username = req.shopUser;
         const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const user = await User.findOne({ username: { $regex: new RegExp(`^${escaped}$`, 'i') } })
             .select('username balance isReseller discountPercent isVip sellCategories sellProductIds sellProductRates')
@@ -1408,9 +1450,10 @@ app.get('/api/user-data/:username', async (req, res) => {
 });
 
 // API MUA HÀNG & LƯU LỊCH SỬ THẬT
-app.post('/api/buy', rateLimit(60 * 1000, 20), async (req, res) => {
+app.post('/api/buy', requireShop, rateLimit(60 * 1000, 20), async (req, res) => {
     try {
-        const { username, productName, packageId, quantity, couponCode } = req.body;
+        const { productName, packageId, quantity, couponCode } = req.body;
+        const username = req.shopUser;
         const buyQuantity = parseInt(quantity) || 1;
         if (buyQuantity <= 0) return res.status(400).json({ message: "Số lượng không hợp lệ!" });
 
@@ -1588,7 +1631,8 @@ app.post('/api/register', rateLimit(15 * 60 * 1000, 6), async (req, res) => {
 
         sendThankYouMail(email, username).catch(err => console.log("Lỗi gửi mail cảm ơn:", err));
 
-        res.status(201).json({ message: "Đăng ký thành công! Đã gửi mail cảm ơn về Gmail của bạn.", username, balance: 0 });
+        const token = createShopSession(username);
+        res.status(201).json({ message: "Đăng ký thành công! Đã gửi mail cảm ơn về Gmail của bạn.", username, balance: 0, token });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -1608,8 +1652,10 @@ app.post('/api/login', rateLimit(15 * 60 * 1000, 10), async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ message: "Sai mật khẩu!" });
 
+        const token = createShopSession(user.username);
         res.status(200).json({
             message: "Đăng nhập thành công!",
+            token,
             username: user.username,
             balance: user.balance,
             ...publicSellFields(user)
@@ -1619,8 +1665,25 @@ app.post('/api/login', rateLimit(15 * 60 * 1000, 10), async (req, res) => {
     }
 });
 
-app.post('/api/topup-card', async (req, res) => {
-    const { type, amount, serial, code, userId } = req.body;
+app.get('/api/shop/me', requireShop, async (req, res) => {
+    try {
+        const escaped = String(req.shopUser).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const user = await User.findOne({ username: { $regex: new RegExp(`^${escaped}$`, 'i') } }).select('-password').lean();
+        if (!user) return res.status(404).json({ message: 'Tài khoản không tồn tại!' });
+        if (user.locked) return res.status(403).json({ message: 'Tài khoản của bạn đã bị khóa!' });
+        res.status(200).json({
+            username: user.username,
+            balance: user.balance,
+            ...publicSellFields(user)
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.post('/api/topup-card', requireShop, async (req, res) => {
+    const { type, amount, serial, code } = req.body;
+    const userId = req.shopUser;
     const TST_API_KEY = "MÃ_API_KEY_THE_SIEU_TOC_CỦA_BẠN";
     const TST_PARTNER_ID = "MÃ_PARTNER_ID_CỦA_BẠN";
     const request_id = Math.floor(Math.random() * 99999999);
@@ -1657,7 +1720,7 @@ app.post('/api/topup-card', async (req, res) => {
     }
 });
 
-app.post('/api/sepay-webhook', async (req, res) => {
+app.post('/api/sepay-webhook', requireSepayWebhook, async (req, res) => {
     try {
         const { transferAmount } = req.body;
         const username = extractSepayUsername(req.body);

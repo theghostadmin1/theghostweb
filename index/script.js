@@ -562,7 +562,17 @@ function pollUserBalance() {
     const api = typeof API_URL !== 'undefined' ? API_URL : '/api';
     return fetch(api + '/user-data/' + encodeURIComponent(CURRENT_USER_ID) + '?lite=1&t=' + Date.now())
         .then(res => {
+            if (res.status === 401) {
+                sessionStorage.removeItem('THEGHOST_SHOP_TOKEN');
+                sessionStorage.removeItem('THEGHOST_SAVED_USER');
+                if (CURRENT_USER_ID !== 'guest') {
+                    CURRENT_USER_ID = 'guest';
+                    location.reload();
+                }
+                return null;
+            }
             if (res.status === 404) {
+                sessionStorage.removeItem('THEGHOST_SHOP_TOKEN');
                 sessionStorage.removeItem('THEGHOST_SAVED_USER');
                 CURRENT_USER_ID = 'guest';
                 location.reload();
@@ -585,7 +595,8 @@ function connectBalanceStream() {
     }
     const api = typeof API_URL !== 'undefined' ? API_URL : '/api';
     try {
-        balanceEventSource = new EventSource(api + '/balance-stream/' + encodeURIComponent(CURRENT_USER_ID));
+        var token = sessionStorage.getItem('THEGHOST_SHOP_TOKEN') || '';
+        balanceEventSource = new EventSource(api + '/balance-stream?access_token=' + encodeURIComponent(token));
         balanceEventSource.onmessage = (ev) => {
             try {
                 const data = JSON.parse(ev.data);
@@ -971,6 +982,7 @@ function applyLoginState(username, extra) {
     document.getElementById('display-username').innerText = username;
     CURRENT_USER_ID = username;
     sessionStorage.setItem('THEGHOST_SAVED_USER', username);
+    if (extra && extra.token) sessionStorage.setItem('THEGHOST_SHOP_TOKEN', extra.token);
     if (extra) {
         applySellDiscountState(extra);
     }
@@ -1044,6 +1056,7 @@ function logout() {
     CURRENT_USER_SELL_RATES = {};
     applyResellerBadge();
     sessionStorage.removeItem('THEGHOST_SAVED_USER');
+    sessionStorage.removeItem('THEGHOST_SHOP_TOKEN');
     stopBalanceLive();
     if (window.globalProducts) loadClientProducts();
     showToast("Đã đăng xuất tài khoản!");
