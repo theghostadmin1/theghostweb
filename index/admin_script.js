@@ -200,11 +200,7 @@ async function fetchUsers() {
                 ? '<span class="badge status-pending" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2);">Đã Khóa</span>'
                 : '<span class="badge status-success">Hoạt động</span>';
             const nProd = Array.isArray(user.sellProductIds) ? user.sellProductIds.length : 0;
-            const catShort = nProd
-                ? (nProd + ' SP')
-                : (Array.isArray(user.sellCategories) && user.sellCategories.length
-                    ? user.sellCategories.join('/')
-                    : ((user.isReseller || user.discountPercent > 0) ? 'chưa chọn SP' : ''));
+            const catShort = nProd ? (nProd + ' SP') : ((user.isReseller || user.discountPercent > 0) ? 'chưa chọn SP' : '');
             const resellerBadge = (user.isReseller || user.discountPercent > 0)
                 ? `<span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 800; border: none; margin-left: 5px;">SELL -${user.discountPercent || 0}% ${catShort}</span>`
                 : '';
@@ -1278,36 +1274,35 @@ function selectedSellProductIds() {
     return Array.from(document.querySelectorAll('.sell-prod-cb:checked')).map(el => el.value);
 }
 
-function syncSellCatChecks() {
-    ['cheat', 'acc', 'tool'].forEach(cat => {
-        const catEl = document.getElementById('sell-cat-' + cat);
-        if (!catEl) return;
-        const boxes = Array.from(document.querySelectorAll('.sell-prod-cb[data-cat="' + cat + '"]'));
-        if (!boxes.length) {
-            catEl.checked = false;
-            catEl.indeterminate = false;
-            return;
-        }
-        const n = boxes.filter(b => b.checked).length;
-        catEl.checked = n === boxes.length;
-        catEl.indeterminate = n > 0 && n < boxes.length;
-    });
+function updateSellProdCount() {
     const countEl = document.getElementById('sell-prod-count');
     if (countEl) countEl.textContent = selectedSellProductIds().length + ' sản phẩm được giảm';
 }
 
-function renderSellProductPicker(selectedIds, selectedCats) {
+function filterSellProductPicker() {
+    const q = String((document.getElementById('sell-prod-search') || {}).value || '').trim().toLowerCase();
+    document.querySelectorAll('.sell-prod-group').forEach(group => {
+        let visible = 0;
+        group.querySelectorAll('label[data-name]').forEach(lab => {
+            const show = !q || (lab.getAttribute('data-name') || '').indexOf(q) !== -1;
+            lab.style.display = show ? 'flex' : 'none';
+            if (show) visible += 1;
+        });
+        group.style.display = visible ? '' : 'none';
+    });
+}
+
+function renderSellProductPicker(selectedIds) {
     const box = document.getElementById('sell-prod-picker');
     if (!box) return;
     const groups = { cheat: 'Bot & Cheat', acc: 'Tài khoản Game', tool: 'Công cụ hỗ trợ' };
     const idSet = new Set((selectedIds || []).map(String));
-    const catSet = new Set(selectedCats || []);
-    const products = allAdminProductsCache.filter(p => p && p.isDiscountable !== false);
+    const products = allAdminProductsCache.slice();
     if (!products.length) {
-        box.innerHTML = '<p class="desc-text">Chưa có sản phẩm cho phép giảm giá. Bật “Cho giảm giá” trên từng sản phẩm trước.</p>';
+        box.innerHTML = '<p class="desc-text">Chưa có sản phẩm. Thêm sản phẩm ở tab Sản phẩm trước.</p>';
+        updateSellProdCount();
         return;
     }
-    const useIds = idSet.size > 0;
     let html = '';
     Object.keys(groups).forEach(cat => {
         const list = products.filter(p => p.category === cat);
@@ -1315,32 +1310,28 @@ function renderSellProductPicker(selectedIds, selectedCats) {
         html += '<div class="sell-prod-group"><p class="sell-prod-cat">' + groups[cat] + '</p>';
         list.forEach(p => {
             const id = sellProdId(p);
-            const on = useIds ? idSet.has(id) : catSet.has(cat);
-            html += '<label><input type="checkbox" class="sell-prod-cb" data-cat="' + cat + '" value="' + id + '"' + (on ? ' checked' : '') + '> '
-                + String(p.name || 'Sản phẩm').replace(/[<>]/g, '')
-                + ' <span>(' + Number(p.price || 0).toLocaleString() + 'đ)</span></label>';
+            const blocked = p.isDiscountable === false;
+            const on = !blocked && idSet.has(id);
+            const name = String(p.name || 'Sản phẩm').replace(/[<>]/g, '');
+            html += '<label data-name="' + name.toLowerCase().replace(/"/g, '') + '"' + (blocked ? ' class="sell-prod-disabled"' : '') + '>'
+                + '<input type="checkbox" class="sell-prod-cb" value="' + id + '"' + (on ? ' checked' : '') + (blocked ? ' disabled' : '') + '> '
+                + name
+                + ' <span>(' + Number(p.price || 0).toLocaleString() + 'đ' + (blocked ? ' · không giảm' : '') + ')</span></label>';
         });
         html += '</div>';
     });
     box.innerHTML = html;
     box.querySelectorAll('.sell-prod-cb').forEach(el => {
-        el.addEventListener('change', syncSellCatChecks);
+        el.addEventListener('change', updateSellProdCount);
     });
-    syncSellCatChecks();
-}
-
-function toggleSellCategoryProducts(cat, on) {
-    document.querySelectorAll('.sell-prod-cb[data-cat="' + cat + '"]').forEach(el => {
-        el.checked = !!on;
-    });
-    syncSellCatChecks();
+    updateSellProdCount();
+    filterSellProductPicker();
 }
 
 async function openResellerModal(username) {
     currentResellerTargetUser = username;
     document.getElementById('reseller-target-username').innerText = username;
     const user = allAdminUsersCache.find(u => u.username === username) || {};
-    const isSell = !!(user.isReseller || user.discountPercent > 0);
     document.getElementById('reseller-is-active').checked = true;
     document.getElementById('reseller-discount-percent').value = user.discountPercent > 0 ? user.discountPercent : 10;
     if (!allAdminProductsCache.length) {
@@ -1350,12 +1341,12 @@ async function openResellerModal(username) {
             allAdminProductsCache = Array.isArray(products) ? products : [];
         } catch (_) {}
     }
-    renderSellProductPicker(user.sellProductIds || [], user.sellCategories || []);
-    ['cheat', 'acc', 'tool'].forEach(cat => {
-        const el = document.getElementById('sell-cat-' + cat);
-        if (!el) return;
-        el.onchange = function () { toggleSellCategoryProducts(cat, el.checked); };
-    });
+    renderSellProductPicker(user.sellProductIds || []);
+    const search = document.getElementById('sell-prod-search');
+    if (search) {
+        search.value = '';
+        search.oninput = filterSellProductPicker;
+    }
     const modal = document.getElementById('admin-reseller-modal');
     if (!modal) return;
     modal.style.display = 'flex';
@@ -1375,12 +1366,8 @@ async function executeSaveReseller() {
     let discountPercent = parseInt(document.getElementById('reseller-discount-percent').value, 10) || 0;
     const isReseller = checked || discountPercent > 0;
     const sellProductIds = selectedSellProductIds();
-    const sellCategories = ['cheat', 'acc', 'tool'].filter(id => {
-        const el = document.getElementById('sell-cat-' + id);
-        return el && el.checked && !el.indeterminate;
-    });
     if (isReseller && !sellProductIds.length) {
-        showToast('Chọn ít nhất 1 sản phẩm được giảm giá!');
+        showToast('Chọn từng sản phẩm được giảm — không giảm cả tab!');
         return;
     }
 
@@ -1388,7 +1375,7 @@ async function executeSaveReseller() {
         const res = await fetch(`${API_URL}/admin/users/${currentResellerTargetUser}/reseller`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isReseller, discountPercent, sellCategories, sellProductIds })
+            body: JSON.stringify({ isReseller, discountPercent, sellProductIds })
         });
         const data = await res.json();
         showToast(data.message || 'Đã cập nhật trạng thái Sell!');
@@ -1667,12 +1654,8 @@ function injectCouponAndResellerUI() {
                         <label for="reseller-is-active" style="color: #fbbf24; font-weight: 700; cursor: pointer;">Kích hoạt đại lý (SELL)</label>
                     </div>
                     <div class="input-group"><i class="fas fa-percent"></i><input type="number" id="reseller-discount-percent" min="0" max="100" placeholder="Chiết khấu % (VD: 20)"></div>
-                    <p style="color:#fbbf24; font-size:0.85rem; font-weight:700; margin:0 0 8px;">Chọn sản phẩm được giảm giá</p>
-                    <div style="display:flex; flex-wrap:wrap; gap:10px 16px; margin-bottom:10px;">
-                        <label style="color:#ddd; display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="sell-cat-cheat" style="width:16px;height:16px;accent-color:#f59e0b;"> Cả Bot &amp; Cheat</label>
-                        <label style="color:#ddd; display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="sell-cat-acc" style="width:16px;height:16px;accent-color:#f59e0b;"> Cả Tài khoản</label>
-                        <label style="color:#ddd; display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="sell-cat-tool" style="width:16px;height:16px;accent-color:#f59e0b;"> Cả Công cụ</label>
-                    </div>
+                    <p style="color:#fbbf24; font-size:0.85rem; font-weight:700; margin:0 0 8px;">Tick từng sản phẩm được giảm — không giảm cả tab</p>
+                    <input type="search" id="sell-prod-search" placeholder="Tìm sản phẩm..." style="width:100%; margin-bottom:10px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.1); background:#0d0d14; color:#fff; font:inherit;">
                     <div id="sell-prod-picker" class="sell-prod-picker"></div>
                     <p id="sell-prod-count" class="desc-text" style="margin:8px 0 14px;">0 sản phẩm được giảm</p>
                     <div style="display:flex; gap:10px;">

@@ -860,19 +860,14 @@ function toggleForm(type) {
 
 function sellCatHint() {
     if (CURRENT_USER_SELL_PRODUCTS.length) return ' · ' + CURRENT_USER_SELL_PRODUCTS.length + ' SP';
-    if (!Array.isArray(CURRENT_USER_SELL_CATS) || CURRENT_USER_SELL_CATS.length === 0) return '';
-    if (CURRENT_USER_SELL_CATS.length >= 3) return '';
-    const names = { cheat: 'Bot', acc: 'Acc', tool: 'Tool' };
-    return ' · ' + CURRENT_USER_SELL_CATS.map(c => names[c] || c).join('/');
+    return '';
 }
 
 function sellDiscountAppliesToProduct(prod) {
     if (!prod || prod.isDiscountable === false) return false;
     if (!CURRENT_USER_IS_RESELLER || !(CURRENT_USER_DISCOUNT > 0)) return false;
-    const pid = String(prod._id || prod.id || '');
-    if (CURRENT_USER_SELL_PRODUCTS.length) return CURRENT_USER_SELL_PRODUCTS.includes(pid);
-    const cat = prod.category;
-    return Array.isArray(CURRENT_USER_SELL_CATS) && CURRENT_USER_SELL_CATS.includes(cat);
+    if (!CURRENT_USER_SELL_PRODUCTS.length) return false;
+    return CURRENT_USER_SELL_PRODUCTS.includes(String(prod._id || prod.id || ''));
 }
 
 function applyResellerBadge() {

@@ -254,6 +254,7 @@
 }
 .sell-prod-picker label span { color: #9ca3af; font-size: .8rem; }
 .sell-prod-picker input { width: 16px; height: 16px; margin-top: 2px; accent-color: #f59e0b; flex-shrink: 0; }
+.sell-prod-disabled { opacity: .45; cursor: not-allowed !important; }
 @media (max-width: 900px) {
     .coupon-stats { grid-template-columns: 1fr; }
     .custom-table th, .custom-table td { padding: 12px 10px !important; font-size: 0.82rem; }

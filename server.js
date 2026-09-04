@@ -234,12 +234,9 @@ function sellDiscountOnProduct(user, product) {
     if (!user || !product) return false;
     if (!(user.isReseller || user.discountPercent > 0) || !(user.discountPercent > 0)) return false;
     if (product.isDiscountable === false) return false;
-    const pid = String(product._id || '');
     const ids = normalizeSellProductIds(user.sellProductIds);
-    if (ids.length) return ids.includes(pid);
-    const cats = normalizeSellCategories(user.sellCategories);
-    if (cats.length) return cats.includes(product.category);
-    return false;
+    if (!ids.length) return false;
+    return ids.includes(String(product._id || ''));
 }
 
 function normalizeEmail(email) {
@@ -1231,7 +1228,7 @@ app.post('/api/coupons/check', async (req, res) => {
 app.put('/api/admin/users/:username/reseller', async (req, res) => {
     try {
         const username = req.params.username;
-        const { isReseller, discountPercent, sellCategories, sellProductIds } = req.body;
+        const { isReseller, discountPercent, sellProductIds } = req.body;
         let percent = Math.min(100, Math.max(0, Number(discountPercent) || 0));
         let active = !!isReseller;
         if (percent > 0) active = true;
@@ -1240,17 +1237,15 @@ app.put('/api/admin/users/:username/reseller', async (req, res) => {
         let productIds = [];
         if (active) {
             productIds = normalizeSellProductIds(sellProductIds);
-            if (productIds.length) {
-                const products = await Product.find({ _id: { $in: productIds } }).select('_id category isDiscountable').lean();
-                productIds = products
-                    .filter(p => p.isDiscountable !== false)
-                    .map(p => String(p._id));
-                cats = normalizeSellCategories(products.map(p => p.category));
-            } else {
-                cats = normalizeSellCategories(sellCategories);
-            }
-            if (!productIds.length && !cats.length) {
-                return res.status(400).json({ message: 'Chọn ít nhất 1 sản phẩm được giảm giá cho SELL!' });
+            const products = productIds.length
+                ? await Product.find({ _id: { $in: productIds } }).select('_id category isDiscountable').lean()
+                : [];
+            productIds = products
+                .filter(p => p.isDiscountable !== false)
+                .map(p => String(p._id));
+            cats = normalizeSellCategories(products.map(p => p.category));
+            if (!productIds.length) {
+                return res.status(400).json({ message: 'Chọn từng sản phẩm được giảm giá (không chọn cả tab)!' });
             }
         }
 
@@ -1358,7 +1353,7 @@ app.get('/api/user-data/:username', async (req, res) => {
         const username = req.params.username;
         const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const user = await User.findOne({ username: { $regex: new RegExp(`^${escaped}$`, 'i') } })
-            .select('username balance isReseller discountPercent isVip sellCategories')
+            .select('username balance isReseller discountPercent isVip sellCategories sellProductIds')
             .lean();
         if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
 
