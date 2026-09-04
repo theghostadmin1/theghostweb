@@ -199,6 +199,7 @@ const UserSchema = new mongoose.Schema({
     isVip: { type: Boolean, default: false },
     sellCategories: { type: [String], default: undefined },
     sellProductIds: { type: [String], default: undefined },
+    sellProductRates: { type: [{ productId: String, percent: Number }], default: undefined },
     referredBy: { type: String, default: '' }
 });
 const User = mongoose.model('User', UserSchema);
@@ -221,21 +222,49 @@ function normalizeSellProductIds(list) {
     }
     return out;
 }
+function normalizeSellProductRates(list) {
+    if (!Array.isArray(list)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const item of list) {
+        const id = String((item && (item.productId || item.id)) || '').trim();
+        const percent = Math.min(100, Math.max(0, Number(item && item.percent) || 0));
+        if (!/^[a-f0-9]{24}$/i.test(id) || seen.has(id) || percent < 1) continue;
+        seen.add(id);
+        out.push({ productId: id, percent });
+        if (out.length >= 200) break;
+    }
+    return out;
+}
 function publicSellFields(user) {
+    let rates = normalizeSellProductRates(user && user.sellProductRates);
+    if (!rates.length) {
+        const ids = normalizeSellProductIds(user && user.sellProductIds);
+        const fallback = Math.min(100, Math.max(0, Number(user && user.discountPercent) || 0));
+        if (ids.length && fallback > 0) {
+            rates = ids.map(productId => ({ productId, percent: fallback }));
+        }
+    }
+    const percents = rates.map(r => r.percent);
     return {
-        isReseller: !!(user && (user.isReseller || (user.discountPercent > 0))),
-        discountPercent: (user && user.discountPercent) || 0,
+        isReseller: !!(user && (user.isReseller || (user.discountPercent > 0) || rates.length)),
+        discountPercent: percents.length ? Math.max.apply(null, percents) : ((user && user.discountPercent) || 0),
         isVip: !!(user && user.isVip),
         sellCategories: normalizeSellCategories(user && user.sellCategories),
-        sellProductIds: normalizeSellProductIds(user && user.sellProductIds)
+        sellProductIds: rates.map(r => r.productId),
+        sellProductRates: rates
     };
 }
+function sellDiscountPercentForProduct(user, product) {
+    if (!user || !product) return 0;
+    if (!(user.isReseller || user.discountPercent > 0 || (Array.isArray(user.sellProductRates) && user.sellProductRates.length))) return 0;
+    const pid = String(product._id || '');
+    const rates = publicSellFields(user).sellProductRates;
+    const hit = rates.find(r => r.productId === pid);
+    return hit ? hit.percent : 0;
+}
 function sellDiscountOnProduct(user, product) {
-    if (!user || !product) return false;
-    if (!(user.isReseller || user.discountPercent > 0) || !(user.discountPercent > 0)) return false;
-    const ids = normalizeSellProductIds(user.sellProductIds);
-    if (!ids.length) return false;
-    return ids.includes(String(product._id || ''));
+    return sellDiscountPercentForProduct(user, product) > 0;
 }
 
 function normalizeEmail(email) {
@@ -666,7 +695,7 @@ function requireSell(req, res, next) {
 }
 
 function isSellAccount(user) {
-    return !!(user && (user.isReseller || (user.discountPercent > 0)));
+    return !!(user && (user.isReseller || (user.discountPercent > 0) || (Array.isArray(user.sellProductRates) && user.sellProductRates.length)));
 }
 
 const balanceSseClients = new Map();
@@ -1227,38 +1256,44 @@ app.post('/api/coupons/check', async (req, res) => {
 app.put('/api/admin/users/:username/reseller', async (req, res) => {
     try {
         const username = req.params.username;
-        const { isReseller, discountPercent, sellProductIds } = req.body;
-        let percent = Math.min(100, Math.max(0, Number(discountPercent) || 0));
-        let active = !!isReseller;
-        if (percent > 0) active = true;
-        if (active && percent <= 0) percent = 10;
+        const { isReseller, discountPercent, sellProductIds, sellProductRates } = req.body;
+        let rates = normalizeSellProductRates(sellProductRates);
+        if (!rates.length) {
+            const fallback = Math.min(100, Math.max(0, Number(discountPercent) || 0)) || 10;
+            rates = normalizeSellProductIds(sellProductIds).map(productId => ({ productId, percent: fallback }));
+        }
+        let percent = rates.length ? Math.max.apply(null, rates.map(r => r.percent)) : 0;
+        let active = !!isReseller || rates.length > 0;
+        if (active && !rates.length) {
+            return res.status(400).json({ message: 'Tick sản phẩm và nhập % giảm cho từng món!' });
+        }
         let cats = [];
         let productIds = [];
         if (active) {
-            productIds = normalizeSellProductIds(sellProductIds);
-            const products = productIds.length
-                ? await Product.find({ _id: { $in: productIds } }).select('_id category').lean()
-                : [];
-            productIds = products.map(p => String(p._id));
+            const products = await Product.find({ _id: { $in: rates.map(r => r.productId) } }).select('_id category').lean();
+            const exist = new Set(products.map(p => String(p._id)));
+            rates = rates.filter(r => exist.has(r.productId));
+            productIds = rates.map(r => r.productId);
             cats = normalizeSellCategories(products.map(p => p.category));
-            if (!productIds.length) {
-                return res.status(400).json({ message: 'Chọn từng sản phẩm được giảm giá (không chọn cả tab)!' });
+            percent = rates.length ? Math.max.apply(null, rates.map(r => r.percent)) : 0;
+            if (!rates.length) {
+                return res.status(400).json({ message: 'Tick sản phẩm và nhập % giảm cho từng món!' });
             }
         }
 
         const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const user = await User.findOneAndUpdate(
             { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
-            { isReseller: active, discountPercent: percent, sellCategories: cats, sellProductIds: productIds },
+            { isReseller: active, discountPercent: percent, sellCategories: cats, sellProductIds: productIds, sellProductRates: rates },
             { new: true }
         );
         if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
         
-        const label = productIds.length
-            ? (productIds.length + ' sản phẩm')
-            : (cats.length ? cats.join(', ') : 'không sản phẩm');
+        const label = rates.length
+            ? rates.map(r => r.percent + '%').slice(0, 4).join(', ') + (rates.length > 4 ? '…' : '') + ' · ' + rates.length + ' SP'
+            : 'không sản phẩm';
         const msg = active
-            ? `Đã nâng cấp ${user.username} thành SELL ${percent}% — ${label}`
+            ? `Đã nâng cấp ${user.username} thành SELL — ${label}`
             : `Đã chuyển ${user.username} về tài khoản Thường!`;
         res.status(200).json({ message: msg, user });
     } catch (error) {
@@ -1350,7 +1385,7 @@ app.get('/api/user-data/:username', async (req, res) => {
         const username = req.params.username;
         const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const user = await User.findOne({ username: { $regex: new RegExp(`^${escaped}$`, 'i') } })
-            .select('username balance isReseller discountPercent isVip sellCategories sellProductIds')
+            .select('username balance isReseller discountPercent isVip sellCategories sellProductIds sellProductRates')
             .lean();
         if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
 
@@ -1447,7 +1482,7 @@ app.post('/api/buy', rateLimit(60 * 1000, 20), async (req, res) => {
 
         const canDiscount = product.isDiscountable !== false;
         if (sellDiscountOnProduct(user, product)) {
-            discountPercent = user.discountPercent;
+            discountPercent = sellDiscountPercentForProduct(user, product);
             discountDesc = ` (Đại lý Sell giảm ${discountPercent}%)`;
         }
         if (canDiscount && couponCode) {
@@ -1710,11 +1745,16 @@ app.get('/api/sell/me', requireSell, async (req, res) => {
             email: user.email,
             balance: user.balance,
             ...sell,
-            sellProducts: sellProducts.map(p => ({
-                id: String(p._id),
-                name: p.name,
-                category: p.category
-            })),
+            sellProducts: sellProducts.map(p => {
+                const id = String(p._id);
+                const rate = sell.sellProductRates.find(r => r.productId === id);
+                return {
+                    id,
+                    name: p.name,
+                    category: p.category,
+                    percent: rate ? rate.percent : sell.discountPercent
+                };
+            }),
             orderCount,
             postCount,
             referralCount

@@ -420,9 +420,10 @@ async function loadClientProducts() {
                 return `<div><i class="fas fa-check"></i> <span>${clean}</span></div>`;
             }).join('');
 
-            const discountBadgeHtml = sellDiscountAppliesToProduct(prod)
-                ? '<div class="prod-discount-badge">SELL -' + CURRENT_USER_DISCOUNT + '%</div>'
-                : (CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0
+            const sellPct = sellDiscountPercent(prod);
+            const discountBadgeHtml = sellPct > 0
+                ? '<div class="prod-discount-badge">SELL -' + sellPct + '%</div>'
+                : (CURRENT_USER_IS_RESELLER
                     ? '<div class="prod-discount-badge" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #9ca3af;">Không chiết khấu SELL</div>'
                     : ((prod.isDiscountable !== false)
                         ? '<div class="prod-discount-badge">Sản phẩm được giảm</div>'
@@ -493,6 +494,7 @@ let CURRENT_USER_DISCOUNT = 0;
 let CURRENT_USER_IS_VIP = false;
 let CURRENT_USER_SELL_CATS = [];
 let CURRENT_USER_SELL_PRODUCTS = [];
+let CURRENT_USER_SELL_RATES = {};
 let currentAppliedCoupon = null; // { code, discountPercent }
 let lastKnownBalance = -1;
 let balancePollBusy = false;
@@ -652,19 +654,7 @@ async function loadUserData(username) {
         const data = await res.json();
         if (seq !== userDataSeq) return;
 
-        const nextProducts = Array.isArray(data.sellProductIds) ? data.sellProductIds.map(String) : [];
-        const nextCats = Array.isArray(data.sellCategories) ? data.sellCategories : [];
-        const sellChanged = nextProducts.join(',') !== CURRENT_USER_SELL_PRODUCTS.join(',')
-            || nextCats.join(',') !== (CURRENT_USER_SELL_CATS || []).join(',')
-            || (data.discountPercent || 0) !== CURRENT_USER_DISCOUNT
-            || (!!data.isReseller || (data.discountPercent > 0)) !== CURRENT_USER_IS_RESELLER;
-        CURRENT_USER_IS_RESELLER = !!data.isReseller || (data.discountPercent > 0);
-        CURRENT_USER_DISCOUNT = data.discountPercent || 0;
-        CURRENT_USER_IS_VIP = !!data.isVip;
-        CURRENT_USER_SELL_CATS = nextCats;
-        CURRENT_USER_SELL_PRODUCTS = nextProducts;
-        applyResellerBadge();
-        if (sellChanged && window.globalProducts) loadClientProducts();
+        applySellDiscountState(data);
 
         document.getElementById('header-balance').innerText = data.balance.toLocaleString() + "đ";
         document.getElementById('stat-balance').innerText = data.balance.toLocaleString() + "đ";
@@ -863,11 +853,40 @@ function sellCatHint() {
     return '';
 }
 
+function applySellDiscountState(data) {
+    const prevKey = CURRENT_USER_SELL_PRODUCTS.map(id => id + ':' + (CURRENT_USER_SELL_RATES[id] || 0)).join(',');
+    CURRENT_USER_SELL_RATES = {};
+    const rates = Array.isArray(data.sellProductRates) ? data.sellProductRates : [];
+    rates.forEach(function (r) {
+        const id = String((r && (r.productId || r.id)) || '');
+        const pct = Number(r && r.percent) || 0;
+        if (id && pct > 0) CURRENT_USER_SELL_RATES[id] = pct;
+    });
+    if (!rates.length && Array.isArray(data.sellProductIds)) {
+        const fallback = Number(data.discountPercent) || 0;
+        data.sellProductIds.forEach(function (id) {
+            if (fallback > 0) CURRENT_USER_SELL_RATES[String(id)] = fallback;
+        });
+    }
+    CURRENT_USER_SELL_PRODUCTS = Object.keys(CURRENT_USER_SELL_RATES);
+    CURRENT_USER_SELL_CATS = Array.isArray(data.sellCategories) ? data.sellCategories : [];
+    CURRENT_USER_IS_RESELLER = !!data.isReseller || CURRENT_USER_SELL_PRODUCTS.length > 0;
+    CURRENT_USER_DISCOUNT = CURRENT_USER_SELL_PRODUCTS.length
+        ? Math.max.apply(null, CURRENT_USER_SELL_PRODUCTS.map(function (id) { return CURRENT_USER_SELL_RATES[id]; }))
+        : (data.discountPercent || 0);
+    CURRENT_USER_IS_VIP = !!data.isVip;
+    applyResellerBadge();
+    const nextKey = CURRENT_USER_SELL_PRODUCTS.map(id => id + ':' + (CURRENT_USER_SELL_RATES[id] || 0)).join(',');
+    if (prevKey !== nextKey && window.globalProducts) loadClientProducts();
+}
+
+function sellDiscountPercent(prod) {
+    if (!prod || !CURRENT_USER_IS_RESELLER) return 0;
+    return Number(CURRENT_USER_SELL_RATES[String(prod._id || prod.id || '')] || 0);
+}
+
 function sellDiscountAppliesToProduct(prod) {
-    if (!prod) return false;
-    if (!CURRENT_USER_IS_RESELLER || !(CURRENT_USER_DISCOUNT > 0)) return false;
-    if (!CURRENT_USER_SELL_PRODUCTS.length) return false;
-    return CURRENT_USER_SELL_PRODUCTS.includes(String(prod._id || prod.id || ''));
+    return sellDiscountPercent(prod) > 0;
 }
 
 function applyResellerBadge() {
@@ -953,12 +972,7 @@ function applyLoginState(username, extra) {
     CURRENT_USER_ID = username;
     sessionStorage.setItem('THEGHOST_SAVED_USER', username);
     if (extra) {
-        CURRENT_USER_IS_RESELLER = !!extra.isReseller || (extra.discountPercent > 0);
-        CURRENT_USER_DISCOUNT = extra.discountPercent || 0;
-        CURRENT_USER_IS_VIP = !!extra.isVip;
-        CURRENT_USER_SELL_CATS = Array.isArray(extra.sellCategories) ? extra.sellCategories : [];
-        CURRENT_USER_SELL_PRODUCTS = Array.isArray(extra.sellProductIds) ? extra.sellProductIds.map(String) : [];
-        applyResellerBadge();
+        applySellDiscountState(extra);
     }
     updateSePayQR();
     loadUserData(username);
@@ -1027,6 +1041,7 @@ function logout() {
     CURRENT_USER_IS_VIP = false;
     CURRENT_USER_SELL_CATS = [];
     CURRENT_USER_SELL_PRODUCTS = [];
+    CURRENT_USER_SELL_RATES = {};
     applyResellerBadge();
     sessionStorage.removeItem('THEGHOST_SAVED_USER');
     stopBalanceLive();
@@ -1585,9 +1600,10 @@ function updateBuyCalc() {
     let discountSource = '';
 
     const productAllowsDiscount = !currentBuyProduct || currentBuyProduct.isDiscountable !== false;
-    if (sellDiscountAppliesToProduct(currentBuyProduct) && CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0) {
-        effectiveDiscountPercent = CURRENT_USER_DISCOUNT;
-        discountSource = `SELL -${CURRENT_USER_DISCOUNT}%`;
+    const sellPct = sellDiscountPercent(currentBuyProduct);
+    if (sellPct > 0) {
+        effectiveDiscountPercent = sellPct;
+        discountSource = `SELL -${sellPct}%`;
     }
 
     if (productAllowsDiscount && currentAppliedCoupon && currentAppliedCoupon.discountPercent > 0) {

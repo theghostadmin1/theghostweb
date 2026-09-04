@@ -54,7 +54,7 @@ async function loadMe() {
     const listEl = document.getElementById('sell-allowed-list');
     if (listEl) {
         listEl.innerHTML = products.length
-            ? products.map(p => `<div class="sell-item"><strong>${escapeHtml(p.name)}</strong><div class="meta">${escapeHtml(catNames[p.category] || p.category || '')}</div></div>`).join('')
+            ? products.map(p => `<div class="sell-item"><strong>${escapeHtml(p.name)}</strong><div class="meta">${escapeHtml(catNames[p.category] || p.category || '')} · giảm ${p.percent || 0}%</div></div>`).join('')
             : '<p class="hint">Admin chưa chọn sản phẩm chiết khấu cho tài khoản này.</p>';
     }
     document.getElementById('st-orders').textContent = me.orderCount || 0;

@@ -199,10 +199,12 @@ async function fetchUsers() {
             const statusBadge = user.locked
                 ? '<span class="badge status-pending" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2);">Đã Khóa</span>'
                 : '<span class="badge status-success">Hoạt động</span>';
-            const nProd = Array.isArray(user.sellProductIds) ? user.sellProductIds.length : 0;
-            const catShort = nProd ? (nProd + ' SP') : ((user.isReseller || user.discountPercent > 0) ? 'chưa chọn SP' : '');
-            const resellerBadge = (user.isReseller || user.discountPercent > 0)
-                ? `<span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 800; border: none; margin-left: 5px;">SELL -${user.discountPercent || 0}% ${catShort}</span>`
+            const nRate = Array.isArray(user.sellProductRates) ? user.sellProductRates.length : 0;
+            const nProd = nRate || (Array.isArray(user.sellProductIds) ? user.sellProductIds.length : 0);
+            const isSell = !!(user.isReseller || user.discountPercent > 0 || nProd);
+            const catShort = nProd ? (nProd + ' SP') : (isSell ? 'chưa chọn SP' : '');
+            const resellerBadge = isSell
+                ? `<span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 800; border: none; margin-left: 5px;">SELL ${catShort}</span>`
                 : '';
             const vipBadge = user.isVip
                 ? '<span class="badge" style="background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; font-weight: 800; border: none; margin-left: 5px;"><i class="fas fa-gem"></i> VIP</span>'
@@ -1270,25 +1272,48 @@ function sellProdId(p) {
     return String((p && (p._id || p.id)) || '');
 }
 
-function selectedSellProductIds() {
-    return Array.from(document.querySelectorAll('.sell-prod-cb:checked')).map(el => el.value);
+function defaultSellPercent() {
+    const el = document.getElementById('reseller-discount-percent');
+    const n = parseInt(el && el.value, 10);
+    return n > 0 && n <= 100 ? n : 10;
+}
+
+function selectedSellProductRates() {
+    return Array.from(document.querySelectorAll('.sell-prod-cb:checked')).map(cb => {
+        const row = cb.closest('.sell-prod-row');
+        const inp = row ? row.querySelector('.sell-prod-pct') : null;
+        let percent = parseInt(inp && inp.value, 10);
+        if (!(percent > 0 && percent <= 100)) percent = defaultSellPercent();
+        return { productId: cb.value, percent };
+    });
+}
+
+function onSellProdCheck(cb) {
+    const row = cb.closest('.sell-prod-row');
+    const inp = row ? row.querySelector('.sell-prod-pct') : null;
+    if (!inp) return;
+    inp.disabled = !cb.checked;
+    if (cb.checked && !(parseInt(inp.value, 10) > 0)) inp.value = String(defaultSellPercent());
+    updateSellProdCount();
 }
 
 function updateSellProdCount() {
     const countEl = document.getElementById('sell-prod-count');
     if (!countEl) return;
-    const n = selectedSellProductIds().length;
+    const rates = selectedSellProductRates();
     const total = document.querySelectorAll('#sell-prod-picker .sell-prod-cb').length;
-    countEl.textContent = n + ' được giảm / ' + total + ' sản phẩm';
+    countEl.textContent = rates.length
+        ? (rates.length + ' món được giảm / ' + total + ' sản phẩm')
+        : ('0 được giảm / ' + total + ' sản phẩm');
 }
 
 function filterSellProductPicker() {
     const q = String((document.getElementById('sell-prod-search') || {}).value || '').trim().toLowerCase();
     document.querySelectorAll('.sell-prod-group').forEach(group => {
         let visible = 0;
-        group.querySelectorAll('label[data-name]').forEach(lab => {
-            const show = !q || (lab.getAttribute('data-name') || '').indexOf(q) !== -1;
-            lab.style.display = show ? 'flex' : 'none';
+        group.querySelectorAll('.sell-prod-row').forEach(row => {
+            const show = !q || (row.getAttribute('data-name') || '').indexOf(q) !== -1;
+            row.style.display = show ? 'flex' : 'none';
             if (show) visible += 1;
         });
         group.style.display = visible ? '' : 'none';
@@ -1303,11 +1328,16 @@ function sellProductCategory(p) {
     return raw || 'other';
 }
 
-function renderSellProductPicker(selectedIds) {
+function renderSellProductPicker(selectedRates) {
     const box = document.getElementById('sell-prod-picker');
     if (!box) return;
     const groups = { cheat: 'Bot & Cheat', acc: 'Tài khoản Game', tool: 'Công cụ hỗ trợ', other: 'Khác' };
-    const idSet = new Set((selectedIds || []).map(String));
+    const rateMap = {};
+    (selectedRates || []).forEach(r => {
+        const id = String((r && (r.productId || r.id)) || '');
+        const pct = Number(r && r.percent) || 0;
+        if (id && pct > 0) rateMap[id] = pct;
+    });
     const products = Array.isArray(allAdminProductsCache) ? allAdminProductsCache.slice() : [];
     if (!products.length) {
         box.innerHTML = '<p class="desc-text">Không tải được sản phẩm. F5 trang admin rồi mở lại.</p>';
@@ -1320,6 +1350,7 @@ function renderSellProductPicker(selectedIds) {
     const order = ['cheat', 'acc', 'tool'].concat(Object.keys(used).filter(k => !groups[k]));
     if (used.other) order.push('other');
     const seen = new Set();
+    const fallback = defaultSellPercent();
     order.forEach(cat => {
         if (seen.has(cat)) return;
         seen.add(cat);
@@ -1329,18 +1360,23 @@ function renderSellProductPicker(selectedIds) {
         html += '<div class="sell-prod-group"><p class="sell-prod-cat">' + title + ' (' + list.length + ')</p>';
         list.forEach(p => {
             const id = sellProdId(p);
-            const on = idSet.has(id);
+            const on = Object.prototype.hasOwnProperty.call(rateMap, id);
+            const pct = on ? rateMap[id] : fallback;
             const name = String(p.name || 'Sản phẩm').replace(/[<>]/g, '');
-            html += '<label data-name="' + name.toLowerCase().replace(/"/g, '') + '">'
-                + '<input type="checkbox" class="sell-prod-cb" value="' + id + '"' + (on ? ' checked' : '') + '> '
-                + name
-                + ' <span>(' + Number(p.price || 0).toLocaleString() + 'đ)</span></label>';
+            html += '<div class="sell-prod-row" data-name="' + name.toLowerCase().replace(/"/g, '') + '">'
+                + '<label><input type="checkbox" class="sell-prod-cb" value="' + id + '"' + (on ? ' checked' : '') + '> '
+                + '<span class="sell-prod-name">' + name + ' <small>' + Number(p.price || 0).toLocaleString() + 'đ</small></span></label>'
+                + '<div class="sell-prod-pct-wrap"><input type="number" class="sell-prod-pct" min="1" max="100" value="' + pct + '"' + (on ? '' : ' disabled') + '><span>%</span></div>'
+                + '</div>';
         });
         html += '</div>';
     });
     box.innerHTML = html || '<p class="desc-text">Không có sản phẩm để chọn.</p>';
     box.querySelectorAll('.sell-prod-cb').forEach(el => {
-        el.addEventListener('change', updateSellProdCount);
+        el.addEventListener('change', function () { onSellProdCheck(el); });
+    });
+    box.querySelectorAll('.sell-prod-pct').forEach(el => {
+        el.addEventListener('input', updateSellProdCount);
     });
     updateSellProdCount();
     filterSellProductPicker();
@@ -1365,7 +1401,12 @@ async function openResellerModal(username) {
     } catch (_) {
         allAdminProductsCache = Array.isArray(allAdminProductsCache) ? allAdminProductsCache : [];
     }
-    renderSellProductPicker(user.sellProductIds || []);
+    let rates = Array.isArray(user.sellProductRates) ? user.sellProductRates : [];
+    if (!rates.length && Array.isArray(user.sellProductIds) && user.sellProductIds.length) {
+        const fallback = user.discountPercent > 0 ? user.discountPercent : 10;
+        rates = user.sellProductIds.map(id => ({ productId: String(id), percent: fallback }));
+    }
+    renderSellProductPicker(rates);
     const search = document.getElementById('sell-prod-search');
     if (search) {
         search.value = '';
@@ -1383,11 +1424,11 @@ function closeResellerModal() {
 async function executeSaveReseller() {
     if (!currentResellerTargetUser) return;
     const checked = document.getElementById('reseller-is-active').checked;
-    let discountPercent = parseInt(document.getElementById('reseller-discount-percent').value, 10) || 0;
-    const isReseller = checked || discountPercent > 0;
-    const sellProductIds = selectedSellProductIds();
-    if (isReseller && !sellProductIds.length) {
-        showToast('Chọn từng sản phẩm được giảm — không giảm cả tab!');
+    const discountPercent = defaultSellPercent();
+    const sellProductRates = checked ? selectedSellProductRates() : [];
+    const isReseller = checked && sellProductRates.length > 0;
+    if (isReseller && !sellProductRates.length) {
+        showToast('Tick sản phẩm và nhập % giảm cho từng món!');
         return;
     }
 
@@ -1395,7 +1436,7 @@ async function executeSaveReseller() {
         const res = await fetch(`${API_URL}/admin/users/${currentResellerTargetUser}/reseller`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isReseller, discountPercent, sellProductIds })
+            body: JSON.stringify({ isReseller, discountPercent, sellProductRates })
         });
         const data = await res.json();
         showToast(data.message || 'Đã cập nhật trạng thái Sell!');
@@ -1674,8 +1715,8 @@ function injectCouponAndResellerUI() {
                         <input type="checkbox" id="reseller-is-active" style="width: 20px; height: 20px; cursor: pointer; accent-color: #f59e0b;">
                         <label for="reseller-is-active" style="color: #fbbf24; font-weight: 700; cursor: pointer;">Kích hoạt đại lý (SELL)</label>
                     </div>
-                    <div class="input-group"><i class="fas fa-percent"></i><input type="number" id="reseller-discount-percent" min="0" max="100" placeholder="Chiết khấu % (VD: 20)"></div>
-                    <p style="color:#fbbf24; font-size:0.85rem; font-weight:700; margin:0 0 8px;">Tick từng sản phẩm — hiện tất cả sản phẩm trong shop</p>
+                    <div class="input-group"><i class="fas fa-percent"></i><input type="number" id="reseller-discount-percent" min="1" max="100" placeholder="Mặc định % khi tick mới (VD: 10)"></div>
+                    <p style="color:#fbbf24; font-size:0.85rem; font-weight:700; margin:0 0 8px;">Tick sản phẩm rồi nhập % giảm riêng từng món</p>
                     <input type="search" id="sell-prod-search" placeholder="Tìm sản phẩm..." style="width:100%; margin-bottom:10px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.1); background:#0d0d14; color:#fff; font:inherit;">
                     <div id="sell-prod-picker" class="sell-prod-picker"></div>
                     <p id="sell-prod-count" class="desc-text" style="margin:8px 0 14px;">0 sản phẩm được giảm</p>
