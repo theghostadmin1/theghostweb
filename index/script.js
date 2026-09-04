@@ -55,10 +55,29 @@ document.addEventListener('DOMContentLoaded', () => {
     wireHomeQuickLinks();
 
     initMobileNav();
+    captureSellRef();
+    wireSellSidebarLink();
 
     // 3. Hiển thị thông báo chào mừng
     showWelcomeModal();
 });
+
+function captureSellRef() {
+    try {
+        const ref = new URLSearchParams(location.search).get('ref');
+        if (ref && /^[A-Za-z0-9_]{3,20}$/.test(ref)) {
+            localStorage.setItem('THEGHOST_REF', ref);
+        }
+    } catch (_) {}
+}
+
+function wireSellSidebarLink() {
+    document.querySelectorAll('.sidebar-nav a').forEach(function (a) {
+        if (/API Seller/i.test(a.textContent || '')) {
+            a.setAttribute('href', '/sell');
+        }
+    });
+}
 
 const CONTACT_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61585402175537';
 const CONTACT_DISCORD_URL = 'https://discord.gg/qczA6fMuP';
@@ -401,9 +420,13 @@ async function loadClientProducts() {
                 return `<div><i class="fas fa-check"></i> <span>${clean}</span></div>`;
             }).join('');
 
-            const discountBadgeHtml = (prod.isDiscountable !== false)
-                ? '<div class="prod-discount-badge">Sản phẩm được giảm</div>'
-                : '<div class="prod-discount-badge" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #9ca3af;">Giá niêm yết chuẩn</div>';
+            const discountBadgeHtml = sellDiscountAppliesToProduct(prod)
+                ? '<div class="prod-discount-badge">SELL -' + CURRENT_USER_DISCOUNT + '%</div>'
+                : (CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0
+                    ? '<div class="prod-discount-badge" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #9ca3af;">Không chiết khấu SELL</div>'
+                    : ((prod.isDiscountable !== false)
+                        ? '<div class="prod-discount-badge">Sản phẩm được giảm</div>'
+                        : '<div class="prod-discount-badge" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #9ca3af;">Giá niêm yết chuẩn</div>'));
 
             const originalPriceHtml = (prod.originalPrice && prod.originalPrice > prod.price)
                 ? `<span style="font-size:0.8rem; color:#888; text-decoration:line-through; margin-left:6px;">${prod.originalPrice.toLocaleString()}đ</span>`
@@ -468,6 +491,8 @@ async function loadClientProducts() {
 let CURRENT_USER_IS_RESELLER = false;
 let CURRENT_USER_DISCOUNT = 0;
 let CURRENT_USER_IS_VIP = false;
+let CURRENT_USER_SELL_CATS = [];
+let CURRENT_USER_SELL_PRODUCTS = [];
 let currentAppliedCoupon = null; // { code, discountPercent }
 let lastKnownBalance = -1;
 let balancePollBusy = false;
@@ -627,10 +652,19 @@ async function loadUserData(username) {
         const data = await res.json();
         if (seq !== userDataSeq) return;
 
+        const nextProducts = Array.isArray(data.sellProductIds) ? data.sellProductIds.map(String) : [];
+        const nextCats = Array.isArray(data.sellCategories) ? data.sellCategories : [];
+        const sellChanged = nextProducts.join(',') !== CURRENT_USER_SELL_PRODUCTS.join(',')
+            || nextCats.join(',') !== (CURRENT_USER_SELL_CATS || []).join(',')
+            || (data.discountPercent || 0) !== CURRENT_USER_DISCOUNT
+            || (!!data.isReseller || (data.discountPercent > 0)) !== CURRENT_USER_IS_RESELLER;
         CURRENT_USER_IS_RESELLER = !!data.isReseller || (data.discountPercent > 0);
         CURRENT_USER_DISCOUNT = data.discountPercent || 0;
         CURRENT_USER_IS_VIP = !!data.isVip;
+        CURRENT_USER_SELL_CATS = nextCats;
+        CURRENT_USER_SELL_PRODUCTS = nextProducts;
         applyResellerBadge();
+        if (sellChanged && window.globalProducts) loadClientProducts();
 
         document.getElementById('header-balance').innerText = data.balance.toLocaleString() + "đ";
         document.getElementById('stat-balance').innerText = data.balance.toLocaleString() + "đ";
@@ -824,8 +858,25 @@ function toggleForm(type) {
     document.getElementById('register-form').style.display = type === 'register' ? 'block' : 'none';
 }
 
+function sellCatHint() {
+    if (CURRENT_USER_SELL_PRODUCTS.length) return ' · ' + CURRENT_USER_SELL_PRODUCTS.length + ' SP';
+    if (!Array.isArray(CURRENT_USER_SELL_CATS) || CURRENT_USER_SELL_CATS.length === 0) return '';
+    if (CURRENT_USER_SELL_CATS.length >= 3) return '';
+    const names = { cheat: 'Bot', acc: 'Acc', tool: 'Tool' };
+    return ' · ' + CURRENT_USER_SELL_CATS.map(c => names[c] || c).join('/');
+}
+
+function sellDiscountAppliesToProduct(prod) {
+    if (!prod || prod.isDiscountable === false) return false;
+    if (!CURRENT_USER_IS_RESELLER || !(CURRENT_USER_DISCOUNT > 0)) return false;
+    const pid = String(prod._id || prod.id || '');
+    if (CURRENT_USER_SELL_PRODUCTS.length) return CURRENT_USER_SELL_PRODUCTS.includes(pid);
+    const cat = prod.category;
+    return Array.isArray(CURRENT_USER_SELL_CATS) && CURRENT_USER_SELL_CATS.includes(cat);
+}
+
 function applyResellerBadge() {
-    const isSell = CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0;
+    const isSell = CURRENT_USER_IS_RESELLER;
     const isVip = !!CURRENT_USER_IS_VIP;
     let rank = document.getElementById('stat-member');
     if (!rank) {
@@ -853,9 +904,9 @@ function applyResellerBadge() {
     }
     const label = rank && rank.parentElement ? rank.parentElement.querySelector('p') : null;
     if (label) {
-        if (isVip && isSell) label.textContent = 'VIP + Đại lý -' + CURRENT_USER_DISCOUNT + '%';
+        if (isVip && isSell) label.textContent = 'VIP + Đại lý -' + CURRENT_USER_DISCOUNT + '%' + sellCatHint();
         else if (isVip) label.textContent = 'Thành viên VIP';
-        else if (isSell) label.textContent = 'Đại lý -' + CURRENT_USER_DISCOUNT + '%';
+        else if (isSell) label.textContent = 'Đại lý -' + CURRENT_USER_DISCOUNT + '%' + sellCatHint();
         else label.textContent = 'Thành viên';
     }
     const nameEl = document.getElementById('display-username');
@@ -887,6 +938,17 @@ function applyResellerBadge() {
             headerBadge.style.display = 'none';
         }
     }
+    const menu = document.getElementById('user-dropdown');
+    if (menu) {
+        let sellItem = document.getElementById('menu-sell-portal');
+        if (isSell && !sellItem) {
+            sellItem = document.createElement('li');
+            sellItem.id = 'menu-sell-portal';
+            sellItem.innerHTML = '<a href="/sell"><i class="fas fa-crown"></i> Trang SELL</a>';
+            menu.insertBefore(sellItem, menu.firstChild);
+        }
+        if (sellItem) sellItem.style.display = isSell ? '' : 'none';
+    }
 }
 
 function applyLoginState(username, extra) {
@@ -899,6 +961,8 @@ function applyLoginState(username, extra) {
         CURRENT_USER_IS_RESELLER = !!extra.isReseller || (extra.discountPercent > 0);
         CURRENT_USER_DISCOUNT = extra.discountPercent || 0;
         CURRENT_USER_IS_VIP = !!extra.isVip;
+        CURRENT_USER_SELL_CATS = Array.isArray(extra.sellCategories) ? extra.sellCategories : [];
+        CURRENT_USER_SELL_PRODUCTS = Array.isArray(extra.sellProductIds) ? extra.sellProductIds.map(String) : [];
         applyResellerBadge();
     }
     updateSePayQR();
@@ -918,6 +982,10 @@ async function handleAuth(event, type) {
         payload.username = document.getElementById('reg-username').value;
         payload.email = document.getElementById('reg-email').value;
         payload.password = document.getElementById('reg-password').value;
+        try {
+            const ref = localStorage.getItem('THEGHOST_REF');
+            if (ref) payload.referredBy = ref;
+        } catch (_) {}
         const email = String(payload.email || '').trim().toLowerCase();
         if (!/^[a-z0-9._%+\-]+@(gmail|googlemail)\.com$/.test(email)) {
             showToast('Vui lòng dùng Gmail thật (@gmail.com)!');
@@ -962,9 +1030,12 @@ function logout() {
     CURRENT_USER_IS_RESELLER = false;
     CURRENT_USER_DISCOUNT = 0;
     CURRENT_USER_IS_VIP = false;
+    CURRENT_USER_SELL_CATS = [];
+    CURRENT_USER_SELL_PRODUCTS = [];
     applyResellerBadge();
     sessionStorage.removeItem('THEGHOST_SAVED_USER');
     stopBalanceLive();
+    if (window.globalProducts) loadClientProducts();
     showToast("Đã đăng xuất tài khoản!");
 }
 
@@ -1519,7 +1590,7 @@ function updateBuyCalc() {
     let discountSource = '';
 
     const productAllowsDiscount = !currentBuyProduct || currentBuyProduct.isDiscountable !== false;
-    if (productAllowsDiscount && CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0) {
+    if (productAllowsDiscount && sellDiscountAppliesToProduct(currentBuyProduct) && CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0) {
         effectiveDiscountPercent = CURRENT_USER_DISCOUNT;
         discountSource = `SELL -${CURRENT_USER_DISCOUNT}%`;
     }

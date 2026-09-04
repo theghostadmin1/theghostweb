@@ -80,8 +80,14 @@ app.get('/bemy', (req, res) => {
     res.sendFile(path.join(__dirname, 'bemy.html'));
 });
 
-app.get(['/index.html', '/bemy.html'], (req, res) => {
-    res.redirect(req.path === '/bemy.html' ? '/bemy' : '/');
+app.get('/sell', (req, res) => {
+    res.sendFile(path.join(__dirname, 'sell.html'));
+});
+
+app.get(['/index.html', '/bemy.html', '/sell.html'], (req, res) => {
+    if (req.path === '/bemy.html') return res.redirect('/bemy');
+    if (req.path === '/sell.html') return res.redirect('/sell');
+    res.redirect('/');
 });
 
 const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || crypto.randomBytes(32).toString('hex');
@@ -190,9 +196,51 @@ const UserSchema = new mongoose.Schema({
     locked: { type: Boolean, default: false },
     isReseller: { type: Boolean, default: false },
     discountPercent: { type: Number, default: 0 },
-    isVip: { type: Boolean, default: false }
+    isVip: { type: Boolean, default: false },
+    sellCategories: { type: [String], default: undefined },
+    sellProductIds: { type: [String], default: undefined },
+    referredBy: { type: String, default: '' }
 });
 const User = mongoose.model('User', UserSchema);
+
+const SELL_CAT_KEYS = ['cheat', 'acc', 'tool'];
+function normalizeSellCategories(list) {
+    if (!Array.isArray(list)) return [];
+    return SELL_CAT_KEYS.filter(c => list.map(x => String(x || '').toLowerCase()).includes(c));
+}
+function normalizeSellProductIds(list) {
+    if (!Array.isArray(list)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const raw of list) {
+        const id = String(raw || '').trim();
+        if (!/^[a-f0-9]{24}$/i.test(id) || seen.has(id)) continue;
+        seen.add(id);
+        out.push(id);
+        if (out.length >= 200) break;
+    }
+    return out;
+}
+function publicSellFields(user) {
+    return {
+        isReseller: !!(user && (user.isReseller || (user.discountPercent > 0))),
+        discountPercent: (user && user.discountPercent) || 0,
+        isVip: !!(user && user.isVip),
+        sellCategories: normalizeSellCategories(user && user.sellCategories),
+        sellProductIds: normalizeSellProductIds(user && user.sellProductIds)
+    };
+}
+function sellDiscountOnProduct(user, product) {
+    if (!user || !product) return false;
+    if (!(user.isReseller || user.discountPercent > 0) || !(user.discountPercent > 0)) return false;
+    if (product.isDiscountable === false) return false;
+    const pid = String(product._id || '');
+    const ids = normalizeSellProductIds(user.sellProductIds);
+    if (ids.length) return ids.includes(pid);
+    const cats = normalizeSellCategories(user.sellCategories);
+    if (cats.length) return cats.includes(product.category);
+    return false;
+}
 
 function normalizeEmail(email) {
     return String(email || '').trim().toLowerCase();
@@ -576,6 +624,54 @@ const HistorySchema = new mongoose.Schema({
     date: { type: Date, default: Date.now }
 });
 const History = mongoose.model('History', HistorySchema);
+
+const SeoPostSchema = new mongoose.Schema({
+    username: { type: String, required: true, index: true },
+    title: { type: String, required: true },
+    slug: { type: String, required: true, unique: true, lowercase: true },
+    description: { type: String, default: '' },
+    content: { type: String, default: '' },
+    links: { type: [String], default: [] },
+    keys: { type: [String], default: [] },
+    published: { type: Boolean, default: true },
+    date: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+const SeoPost = mongoose.model('SeoPost', SeoPostSchema);
+
+function slugifySeo(input) {
+    const base = String(input || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80);
+    return base || ('bai-' + Date.now().toString(36));
+}
+
+function parseLines(value) {
+    return String(value || '')
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .slice(0, 50);
+}
+
+const sellSessions = new Map();
+function requireSell(req, res, next) {
+    const header = String(req.headers.authorization || '');
+    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    const session = token ? sellSessions.get(token) : null;
+    if (!session || session.exp < Date.now()) {
+        return res.status(401).json({ success: false, message: 'Phiên SELL hết hạn. Đăng nhập lại.' });
+    }
+    req.sellUser = session.username;
+    next();
+}
+
+function isSellAccount(user) {
+    return !!(user && (user.isReseller || (user.discountPercent > 0)));
+}
 
 const balanceSseClients = new Map();
 
@@ -1135,22 +1231,42 @@ app.post('/api/coupons/check', async (req, res) => {
 app.put('/api/admin/users/:username/reseller', async (req, res) => {
     try {
         const username = req.params.username;
-        const { isReseller, discountPercent } = req.body;
+        const { isReseller, discountPercent, sellCategories, sellProductIds } = req.body;
         let percent = Math.min(100, Math.max(0, Number(discountPercent) || 0));
         let active = !!isReseller;
         if (percent > 0) active = true;
         if (active && percent <= 0) percent = 10;
+        let cats = [];
+        let productIds = [];
+        if (active) {
+            productIds = normalizeSellProductIds(sellProductIds);
+            if (productIds.length) {
+                const products = await Product.find({ _id: { $in: productIds } }).select('_id category isDiscountable').lean();
+                productIds = products
+                    .filter(p => p.isDiscountable !== false)
+                    .map(p => String(p._id));
+                cats = normalizeSellCategories(products.map(p => p.category));
+            } else {
+                cats = normalizeSellCategories(sellCategories);
+            }
+            if (!productIds.length && !cats.length) {
+                return res.status(400).json({ message: 'Chọn ít nhất 1 sản phẩm được giảm giá cho SELL!' });
+            }
+        }
 
         const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const user = await User.findOneAndUpdate(
             { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
-            { isReseller: active, discountPercent: percent },
+            { isReseller: active, discountPercent: percent, sellCategories: cats, sellProductIds: productIds },
             { new: true }
         );
         if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
         
+        const label = productIds.length
+            ? (productIds.length + ' sản phẩm')
+            : (cats.length ? cats.join(', ') : 'không sản phẩm');
         const msg = active
-            ? `Đã nâng cấp ${user.username} thành SELL với mức chiết khấu ${percent}%!`
+            ? `Đã nâng cấp ${user.username} thành SELL ${percent}% — ${label}`
             : `Đã chuyển ${user.username} về tài khoản Thường!`;
         res.status(200).json({ message: msg, user });
     } catch (error) {
@@ -1242,7 +1358,7 @@ app.get('/api/user-data/:username', async (req, res) => {
         const username = req.params.username;
         const escaped = String(username).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const user = await User.findOne({ username: { $regex: new RegExp(`^${escaped}$`, 'i') } })
-            .select('username balance isReseller discountPercent isVip')
+            .select('username balance isReseller discountPercent isVip sellCategories')
             .lean();
         if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
 
@@ -1255,9 +1371,7 @@ app.get('/api/user-data/:username', async (req, res) => {
 
         res.status(200).json({
             balance: user.balance,
-            isReseller: !!user.isReseller || (user.discountPercent > 0),
-            discountPercent: user.discountPercent || 0,
-            isVip: !!user.isVip,
+            ...publicSellFields(user),
             orders: orders,
             history: history
         });
@@ -1342,7 +1456,7 @@ app.post('/api/buy', rateLimit(60 * 1000, 20), async (req, res) => {
         const canDiscount = product.isDiscountable !== false;
 
         if (canDiscount) {
-            if ((user.isReseller || user.discountPercent > 0) && user.discountPercent > 0) {
+            if (sellDiscountOnProduct(user, product)) {
                 discountPercent = user.discountPercent;
                 discountDesc = ` (Đại lý Sell giảm ${discountPercent}%)`;
             }
@@ -1436,8 +1550,17 @@ app.post('/api/register', rateLimit(15 * 60 * 1000, 6), async (req, res) => {
         });
         if (exists) return res.status(400).json({ message: "Tài khoản hoặc Gmail đã tồn tại!" });
 
+        let referredBy = '';
+        const rawRef = String(req.body.referredBy || '').trim();
+        if (isValidUsername(rawRef) && rawRef.toLowerCase() !== username.toLowerCase()) {
+            const referrer = await User.findOne({
+                username: { $regex: new RegExp(`^${rawRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+            });
+            if (referrer && isSellAccount(referrer)) referredBy = referrer.username;
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ username, email, password: hashedPassword, balance: 0 });
+        const newUser = new User({ username, email, password: hashedPassword, balance: 0, referredBy });
         await newUser.save();
 
         sendThankYouMail(email, username).catch(err => console.log("Lỗi gửi mail cảm ơn:", err));
@@ -1466,9 +1589,7 @@ app.post('/api/login', rateLimit(15 * 60 * 1000, 10), async (req, res) => {
             message: "Đăng nhập thành công!",
             username: user.username,
             balance: user.balance,
-            isReseller: !!user.isReseller || (user.discountPercent > 0),
-            discountPercent: user.discountPercent || 0,
-            isVip: !!user.isVip
+            ...publicSellFields(user)
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -1552,6 +1673,236 @@ app.post('/api/sepay-webhook', async (req, res) => {
 function md5(string) {
     return require('crypto').createHash('md5').update(string).digest('hex');
 }
+
+app.post('/api/sell/login', rateLimit(15 * 60 * 1000, 10), async (req, res) => {
+    try {
+        const password = String(req.body.password || '');
+        const email = normalizeEmail(req.body.email);
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: 'Tài khoản không tồn tại!' });
+        if (user.locked) return res.status(403).json({ message: 'Tài khoản đã bị khóa!' });
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(400).json({ message: 'Sai mật khẩu!' });
+        if (!isSellAccount(user)) {
+            return res.status(403).json({ message: 'Tài khoản chưa được cấp SELL. Liên hệ Admin.' });
+        }
+        const token = crypto.randomBytes(32).toString('hex');
+        sellSessions.set(token, { username: user.username, exp: Date.now() + 12 * 60 * 60 * 1000 });
+        res.status(200).json({
+            token,
+            username: user.username,
+            balance: user.balance,
+            ...publicSellFields(user)
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.get('/api/sell/me', requireSell, async (req, res) => {
+    try {
+        const user = await User.findOne({ username: req.sellUser }).select('-password').lean();
+        if (!user || !isSellAccount(user)) {
+            return res.status(403).json({ message: 'Tài khoản không còn quyền SELL.' });
+        }
+        const [orderCount, postCount, referralCount] = await Promise.all([
+            Order.countDocuments({ username: user.username }),
+            SeoPost.countDocuments({ username: user.username }),
+            User.countDocuments({ referredBy: user.username })
+        ]);
+        const sell = publicSellFields(user);
+        let sellProducts = [];
+        if (sell.sellProductIds.length) {
+            sellProducts = await Product.find({ _id: { $in: sell.sellProductIds } })
+                .select('name category')
+                .lean();
+        }
+        res.status(200).json({
+            username: user.username,
+            email: user.email,
+            balance: user.balance,
+            ...sell,
+            sellProducts: sellProducts.map(p => ({
+                id: String(p._id),
+                name: p.name,
+                category: p.category
+            })),
+            orderCount,
+            postCount,
+            referralCount
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.get('/api/sell/orders', requireSell, async (req, res) => {
+    try {
+        const orders = await Order.find({ username: req.sellUser })
+            .sort({ date: -1 })
+            .limit(15)
+            .select('orderId productName price status date')
+            .lean();
+        res.status(200).json(orders);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.get('/api/sell/referrals', requireSell, async (req, res) => {
+    try {
+        const users = await User.find({ referredBy: req.sellUser })
+            .select('username balance isVip')
+            .sort({ _id: -1 })
+            .limit(50)
+            .lean();
+        res.status(200).json(users.map(u => ({
+            username: u.username,
+            balance: u.balance || 0,
+            isVip: !!u.isVip
+        })));
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.get('/api/sell/posts', requireSell, async (req, res) => {
+    try {
+        const posts = await SeoPost.find({ username: req.sellUser }).sort({ date: -1 }).lean();
+        res.status(200).json(posts);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.post('/api/sell/posts', requireSell, rateLimit(15 * 60 * 1000, 20), async (req, res) => {
+    try {
+        const title = String(req.body.title || '').trim();
+        if (!title) return res.status(400).json({ message: 'Nhập tiêu đề bài viết!' });
+        let slug = slugifySeo(req.body.slug || title);
+        const exists = await SeoPost.findOne({ slug });
+        if (exists) slug = slug + '-' + Date.now().toString(36);
+        const post = await SeoPost.create({
+            username: req.sellUser,
+            title,
+            slug,
+            description: String(req.body.description || '').trim().slice(0, 300),
+            content: String(req.body.content || '').trim().slice(0, 20000),
+            links: parseLines(req.body.links),
+            keys: parseLines(req.body.keys),
+            published: req.body.published !== false
+        });
+        res.status(201).json({ message: 'Đã đăng bài SEO!', post });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.put('/api/sell/posts/:id', requireSell, async (req, res) => {
+    try {
+        const post = await SeoPost.findOne({ _id: req.params.id, username: req.sellUser });
+        if (!post) return res.status(404).json({ message: 'Không tìm thấy bài!' });
+        if (req.body.title !== undefined) post.title = String(req.body.title || '').trim();
+        if (req.body.description !== undefined) post.description = String(req.body.description || '').trim().slice(0, 300);
+        if (req.body.content !== undefined) post.content = String(req.body.content || '').trim().slice(0, 20000);
+        if (req.body.links !== undefined) post.links = parseLines(req.body.links);
+        if (req.body.keys !== undefined) post.keys = parseLines(req.body.keys);
+        if (req.body.published !== undefined) post.published = !!req.body.published;
+        if (req.body.slug) {
+            let slug = slugifySeo(req.body.slug);
+            const clash = await SeoPost.findOne({ slug, _id: { $ne: post._id } });
+            if (!clash) post.slug = slug;
+        }
+        post.updatedAt = new Date();
+        await post.save();
+        res.status(200).json({ message: 'Đã cập nhật bài!', post });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.delete('/api/sell/posts/:id', requireSell, async (req, res) => {
+    try {
+        const deleted = await SeoPost.findOneAndDelete({ _id: req.params.id, username: req.sellUser });
+        if (!deleted) return res.status(404).json({ message: 'Không tìm thấy bài!' });
+        res.status(200).json({ message: 'Đã xóa bài.' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+function renderSeoPage(post, origin) {
+    const title = escapeMailHtml(post.title);
+    const desc = escapeMailHtml(post.description || post.title);
+    const body = escapeMailHtml(post.content).replace(/\n/g, '<br>');
+    const links = (post.links || []).map(u => {
+        const safe = escapeMailHtml(u);
+        const href = /^https?:\/\//i.test(u) ? u : '#';
+        return `<li><a href="${escapeMailHtml(href)}" rel="nofollow noopener" target="_blank">${safe}</a></li>`;
+    }).join('');
+    const keys = (post.keys || []).map(k => `<li><code>${escapeMailHtml(k)}</code></li>`).join('');
+    const url = origin + '/p/' + post.slug;
+    return `<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title} | TheGhost Coder</title>
+<meta name="description" content="${desc}">
+<link rel="canonical" href="${escapeMailHtml(url)}">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${desc}">
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#060608;color:#eee;line-height:1.65}
+.wrap{max-width:760px;margin:0 auto;padding:28px 18px 80px}
+a{color:#c4b5fd} .muted{color:#9ca3af;font-size:.9rem}
+h1{font-size:1.8rem;margin:8px 0 12px}
+.box{background:#121218;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px;margin:16px 0}
+code{background:#0d0d14;padding:2px 8px;border-radius:6px;color:#fbbf24}
+ul{padding-left:18px} .top a{color:#a78bfa;text-decoration:none;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+<p class="top"><a href="/">← TheGhost Coder</a></p>
+<p class="muted">Đăng bởi ${escapeMailHtml(post.username)} · ${new Date(post.date).toLocaleDateString('vi-VN')}</p>
+<h1>${title}</h1>
+<p>${desc}</p>
+<div class="box">${body || '<p class="muted">Chưa có nội dung.</p>'}</div>
+${links ? `<div class="box"><h2>Liên kết</h2><ul>${links}</ul></div>` : ''}
+${keys ? `<div class="box"><h2>Key</h2><ul>${keys}</ul></div>` : ''}
+<p class="muted"><a href="/sell">Cổng đại lý SELL</a> · <a href="/">Mua hàng</a></p>
+</div>
+</body></html>`;
+}
+
+app.get('/p/:slug', async (req, res) => {
+    try {
+        const post = await SeoPost.findOne({ slug: String(req.params.slug || '').toLowerCase(), published: true }).lean();
+        if (!post) return res.status(404).send('Không tìm thấy bài viết.');
+        const origin = (req.protocol + '://' + req.get('host'));
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(renderSeoPage(post, origin));
+    } catch (error) {
+        res.status(500).send('Lỗi tải bài viết.');
+    }
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+    try {
+        const origin = req.protocol + '://' + req.get('host');
+        const posts = await SeoPost.find({ published: true }).select('slug updatedAt').lean();
+        const urls = [
+            `<url><loc>${origin}/</loc></url>`,
+            `<url><loc>${origin}/sell</loc></url>`,
+            ...posts.map(p => `<url><loc>${origin}/p/${p.slug}</loc><lastmod>${new Date(p.updatedAt || Date.now()).toISOString()}</lastmod></url>`)
+        ];
+        res.setHeader('Content-Type', 'application/xml');
+        res.send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`);
+    } catch (error) {
+        res.status(500).end();
+    }
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {

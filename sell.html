@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cổng đại lý SELL | TheGhost Coder</title>
+    <meta name="robots" content="noindex,nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./index/sell.css?v=4">
+    <link rel="icon" href="/logo.png" type="image/png">
+</head>
+<body>
+    <div id="sell-login" class="sell-shell">
+        <div class="sell-card">
+            <img src="/logo.png" alt="TheGhost" class="sell-logo">
+            <h1><i class="fas fa-crown"></i> Cổng đại lý SELL</h1>
+            <p class="sell-sub">Đăng nhập bằng tài khoản shop đã được Admin cấp SELL. Không liên quan trang Admin.</p>
+            <form id="sell-login-form">
+                <label>Gmail</label>
+                <input type="email" id="sell-email" required placeholder="email@gmail.com" autocomplete="username">
+                <label>Mật khẩu</label>
+                <input type="password" id="sell-password" required placeholder="Mật khẩu shop" autocomplete="current-password">
+                <button type="submit" class="sell-btn"><i class="fas fa-sign-in-alt"></i> Vào cổng SELL</button>
+            </form>
+            <p id="sell-login-msg" class="sell-msg"></p>
+            <p class="sell-foot"><a href="/">← Về shop</a></p>
+        </div>
+    </div>
+
+    <div id="sell-app" class="sell-app" hidden>
+        <header class="sell-top">
+            <div class="sell-brand">
+                <img src="/logo.png" alt="">
+                <div>
+                    <strong>TheGhost SELL</strong>
+                    <span id="sell-user-label">—</span>
+                </div>
+            </div>
+            <div class="sell-top-actions">
+                <a href="/" class="sell-link">Shop</a>
+                <button type="button" id="sell-logout" class="sell-btn ghost">Đăng xuất</button>
+            </div>
+        </header>
+
+        <section class="sell-stats">
+            <article><p>Số dư</p><h2 id="st-balance">0đ</h2></article>
+            <article><p>Chiết khấu</p><h2 id="st-discount">0%</h2><p class="hint" id="st-sell-cats" style="margin:6px 0 0;">—</p></article>
+            <article><p>Đơn hàng</p><h2 id="st-orders">0</h2></article>
+            <article><p>Giới thiệu</p><h2 id="st-refs">0</h2></article>
+            <article><p>Bài SEO</p><h2 id="st-posts">0</h2></article>
+        </section>
+
+        <section class="sell-panel">
+            <h3><i class="fas fa-tags"></i> Sản phẩm được chiết khấu SELL</h3>
+            <div id="sell-allowed-list" class="sell-list"></div>
+        </section>
+
+        <section class="sell-panel">
+            <h3><i class="fas fa-share-alt"></i> Link giới thiệu shop</h3>
+            <div class="sell-row">
+                <input id="sell-ref" readonly>
+                <button type="button" class="sell-btn" id="copy-ref">Copy</button>
+            </div>
+            <p class="hint">Khách nạp bank ghi nội dung: <code>TGCODER TÊN_BẠN</code></p>
+        </section>
+
+        <section class="sell-panel">
+            <h3><i class="fas fa-globe"></i> Đăng bài SEO (link + key)</h3>
+            <p class="hint">Bài public tại <code>/p/ten-bai</code>, Google index được. Không đi qua Admin.</p>
+            <form id="sell-post-form">
+                <input type="hidden" id="post-id">
+                <label>Tiêu đề</label>
+                <input id="post-title" required placeholder="VD: Aimbot Aurora VN key mới">
+                <label>Slug URL (để trống sẽ tự tạo)</label>
+                <input id="post-slug" placeholder="aimbot-aurora-vn">
+                <label>Mô tả ngắn (SEO)</label>
+                <input id="post-desc" maxlength="300" placeholder="Mô tả hiện trên Google">
+                <label>Nội dung</label>
+                <textarea id="post-content" rows="6" placeholder="Nội dung bài viết..."></textarea>
+                <label>Link (mỗi dòng 1 URL)</label>
+                <textarea id="post-links" rows="3" placeholder="https://..."></textarea>
+                <label>Key (mỗi dòng 1 key)</label>
+                <textarea id="post-keys" rows="3" placeholder="XXXX-XXXX"></textarea>
+                <label class="chk"><input type="checkbox" id="post-pub" checked> Công khai (Google thấy được)</label>
+                <div class="sell-row">
+                    <button type="submit" class="sell-btn" id="post-save"><i class="fas fa-paper-plane"></i> Đăng bài</button>
+                    <button type="button" class="sell-btn ghost" id="post-reset">Làm mới</button>
+                </div>
+            </form>
+            <p id="sell-post-msg" class="sell-msg"></p>
+        </section>
+
+        <section class="sell-panel">
+            <h3><i class="fas fa-box"></i> Đơn hàng gần đây</h3>
+            <div id="sell-order-list" class="sell-list"></div>
+        </section>
+
+        <section class="sell-panel">
+            <h3><i class="fas fa-users"></i> Khách giới thiệu</h3>
+            <div id="sell-ref-list" class="sell-list"></div>
+        </section>
+
+        <section class="sell-panel">
+            <h3><i class="fas fa-list"></i> Bài đã đăng</h3>
+            <div id="sell-post-list" class="sell-list"></div>
+        </section>
+    </div>
+    <script src="./index/sell.js?v=4"></script>
+</body>
+</html>
