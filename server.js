@@ -233,7 +233,6 @@ function publicSellFields(user) {
 function sellDiscountOnProduct(user, product) {
     if (!user || !product) return false;
     if (!(user.isReseller || user.discountPercent > 0) || !(user.discountPercent > 0)) return false;
-    if (product.isDiscountable === false) return false;
     const ids = normalizeSellProductIds(user.sellProductIds);
     if (!ids.length) return false;
     return ids.includes(String(product._id || ''));
@@ -1238,11 +1237,9 @@ app.put('/api/admin/users/:username/reseller', async (req, res) => {
         if (active) {
             productIds = normalizeSellProductIds(sellProductIds);
             const products = productIds.length
-                ? await Product.find({ _id: { $in: productIds } }).select('_id category isDiscountable').lean()
+                ? await Product.find({ _id: { $in: productIds } }).select('_id category').lean()
                 : [];
-            productIds = products
-                .filter(p => p.isDiscountable !== false)
-                .map(p => String(p._id));
+            productIds = products.map(p => String(p._id));
             cats = normalizeSellCategories(products.map(p => p.category));
             if (!productIds.length) {
                 return res.status(400).json({ message: 'Chọn từng sản phẩm được giảm giá (không chọn cả tab)!' });
@@ -1449,24 +1446,20 @@ app.post('/api/buy', rateLimit(60 * 1000, 20), async (req, res) => {
         let couponDoc = null;
 
         const canDiscount = product.isDiscountable !== false;
-
-        if (canDiscount) {
-            if (sellDiscountOnProduct(user, product)) {
-                discountPercent = user.discountPercent;
-                discountDesc = ` (Đại lý Sell giảm ${discountPercent}%)`;
-            }
-
-            if (couponCode) {
-                const cCode = String(couponCode).trim().toUpperCase();
-                const foundCoupon = await Coupon.findOne({ code: cCode, status: 'active' });
-                if (foundCoupon) {
-                    const notExpired = !foundCoupon.expiresAt || new Date(foundCoupon.expiresAt) >= new Date();
-                    const hasUses = !foundCoupon.maxUsage || foundCoupon.usedCount < foundCoupon.maxUsage;
-                    if (notExpired && hasUses && foundCoupon.discountPercent > discountPercent) {
-                        discountPercent = foundCoupon.discountPercent;
-                        discountDesc = ` (Mã ${foundCoupon.code} giảm ${discountPercent}%)`;
-                        couponDoc = foundCoupon;
-                    }
+        if (sellDiscountOnProduct(user, product)) {
+            discountPercent = user.discountPercent;
+            discountDesc = ` (Đại lý Sell giảm ${discountPercent}%)`;
+        }
+        if (canDiscount && couponCode) {
+            const cCode = String(couponCode).trim().toUpperCase();
+            const foundCoupon = await Coupon.findOne({ code: cCode, status: 'active' });
+            if (foundCoupon) {
+                const notExpired = !foundCoupon.expiresAt || new Date(foundCoupon.expiresAt) >= new Date();
+                const hasUses = !foundCoupon.maxUsage || foundCoupon.usedCount < foundCoupon.maxUsage;
+                if (notExpired && hasUses && foundCoupon.discountPercent > discountPercent) {
+                    discountPercent = foundCoupon.discountPercent;
+                    discountDesc = ` (Mã ${foundCoupon.code} giảm ${discountPercent}%)`;
+                    couponDoc = foundCoupon;
                 }
             }
         }

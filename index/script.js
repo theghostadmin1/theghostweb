@@ -864,7 +864,7 @@ function sellCatHint() {
 }
 
 function sellDiscountAppliesToProduct(prod) {
-    if (!prod || prod.isDiscountable === false) return false;
+    if (!prod) return false;
     if (!CURRENT_USER_IS_RESELLER || !(CURRENT_USER_DISCOUNT > 0)) return false;
     if (!CURRENT_USER_SELL_PRODUCTS.length) return false;
     return CURRENT_USER_SELL_PRODUCTS.includes(String(prod._id || prod.id || ''));
@@ -1585,12 +1585,12 @@ function updateBuyCalc() {
     let discountSource = '';
 
     const productAllowsDiscount = !currentBuyProduct || currentBuyProduct.isDiscountable !== false;
-    if (productAllowsDiscount && sellDiscountAppliesToProduct(currentBuyProduct) && CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0) {
+    if (sellDiscountAppliesToProduct(currentBuyProduct) && CURRENT_USER_IS_RESELLER && CURRENT_USER_DISCOUNT > 0) {
         effectiveDiscountPercent = CURRENT_USER_DISCOUNT;
         discountSource = `SELL -${CURRENT_USER_DISCOUNT}%`;
     }
 
-    if (currentAppliedCoupon && currentAppliedCoupon.discountPercent > 0) {
+    if (productAllowsDiscount && currentAppliedCoupon && currentAppliedCoupon.discountPercent > 0) {
         if (currentAppliedCoupon.discountPercent > effectiveDiscountPercent) {
             effectiveDiscountPercent = currentAppliedCoupon.discountPercent;
             discountSource = `MÃ ${currentAppliedCoupon.code} -${currentAppliedCoupon.discountPercent}%`;
