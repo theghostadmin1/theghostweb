@@ -1587,11 +1587,19 @@ async function applyCouponCode() {
         const res = await fetch(API_URL + '/coupons/check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, username: CURRENT_USER_ID })
+            body: JSON.stringify({
+                code,
+                productId: currentBuyProduct && currentBuyProduct._id,
+                productName: currentBuyProduct && currentBuyProduct.name
+            })
         });
         const data = await res.json();
         if (res.ok && data.valid) {
-            currentAppliedCoupon = { code: data.code, discountPercent: data.discountPercent };
+            currentAppliedCoupon = {
+                code: data.code,
+                discountPercent: data.discountPercent,
+                productIds: Array.isArray(data.productIds) ? data.productIds : []
+            };
             if (msgEl) {
                 msgEl.style.display = 'block';
                 msgEl.style.color = '#10b981';
@@ -1654,18 +1662,21 @@ function updateBuyCalc() {
     let effectiveDiscountPercent = 0;
     let discountSource = '';
 
-    const productAllowsDiscount = !currentBuyProduct || currentBuyProduct.isDiscountable !== false;
     const sellPct = sellDiscountPercent(currentBuyProduct);
     if (sellPct > 0) {
         effectiveDiscountPercent = sellPct;
         discountSource = `SELL -${sellPct}%`;
     }
 
-    if (productAllowsDiscount && currentAppliedCoupon && currentAppliedCoupon.discountPercent > 0) {
-        if (currentAppliedCoupon.discountPercent > effectiveDiscountPercent) {
-            effectiveDiscountPercent = currentAppliedCoupon.discountPercent;
-            discountSource = `MÃ ${currentAppliedCoupon.code} -${currentAppliedCoupon.discountPercent}%`;
-        }
+    const couponIds = currentAppliedCoupon && Array.isArray(currentAppliedCoupon.productIds)
+        ? currentAppliedCoupon.productIds.map(String)
+        : [];
+    const couponFitsProduct = currentAppliedCoupon
+        && currentAppliedCoupon.discountPercent > 0
+        && couponIds.includes(String(currentBuyProduct._id));
+    if (couponFitsProduct && currentAppliedCoupon.discountPercent > effectiveDiscountPercent) {
+        effectiveDiscountPercent = currentAppliedCoupon.discountPercent;
+        discountSource = `MÃ ${currentAppliedCoupon.code} -${currentAppliedCoupon.discountPercent}%`;
     }
 
     let finalTotal = rawTotal;

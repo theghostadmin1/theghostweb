@@ -1458,6 +1458,12 @@ async function fetchCouponsAdmin() {
         const coupons = await res.json();
         const tbody = document.getElementById('admin-coupons-tbody');
         if (!tbody) return;
+        const headRow = document.querySelector('#admin-coupons-page thead tr');
+        if (headRow && ![...headRow.children].some(th => /sản phẩm/i.test(th.textContent || ''))) {
+            const th = document.createElement('th');
+            th.textContent = 'Sản phẩm';
+            headRow.insertBefore(th, headRow.children[2] || null);
+        }
         const list = Array.isArray(coupons) ? coupons : [];
         const now = Date.now();
         const activeCount = list.filter(c => {
@@ -1477,7 +1483,7 @@ async function fetchCouponsAdmin() {
         if (list.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="coupon-empty">
+                    <td colspan="7" class="coupon-empty">
                         <div class="coupon-empty-icon"><i class="fas fa-ticket-alt"></i></div>
                         <div style="color:#fff; font-weight:700; margin-bottom:6px;">Chưa có mã giảm giá</div>
                         <div style="color:#9ca3af; margin-bottom:16px;">Tạo mã để khách hàng nhập khi thanh toán.</div>
@@ -1503,6 +1509,14 @@ async function fetchCouponsAdmin() {
             const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : Math.min(100, used ? 8 : 0);
             const usageLabel = max > 0 ? `${used} / ${max}` : `${used} / ∞`;
             const expStr = c.expiresAt ? formatDate(c.expiresAt) : 'Không hết hạn';
+            const allowedIds = Array.isArray(c.productIds) ? c.productIds.map(String) : [];
+            const allowedNames = allowedIds.map(id => {
+                const prod = allAdminProductsCache.find(p => String(p._id) === id);
+                return prod ? prod.name : '';
+            }).filter(Boolean);
+            const prodLabel = allowedNames.length
+                ? (allowedNames.length <= 2 ? allowedNames.join(', ') : (allowedNames[0] + ' +' + (allowedNames.length - 1)))
+                : 'Chưa chọn sản phẩm';
             const nextStatus = inactive ? 'active' : 'inactive';
             const toggleLabel = inactive ? 'Bật' : 'Tắt';
             const toggleIcon = inactive ? 'fa-play' : 'fa-pause';
@@ -1516,6 +1530,7 @@ async function fetchCouponsAdmin() {
                         </span>
                     </td>
                     <td><span class="badge" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.35); font-weight: 800;">-${c.discountPercent}%</span></td>
+                    <td class="text-muted" title="${escapeHtml(allowedNames.join(', '))}">${escapeHtml(prodLabel)}</td>
                     <td>
                         <div class="coupon-usage">
                             <div class="coupon-usage-meta"><span>Đã dùng</span><span>${usageLabel}</span></div>
@@ -1544,6 +1559,75 @@ function copyCouponCode(code) {
         return;
     }
     showToast(text);
+}
+
+function selectedCouponProductIds() {
+    return Array.from(document.querySelectorAll('#coupon-prod-picker .coupon-prod-cb:checked')).map(cb => cb.value);
+}
+
+function updateCouponProdCount() {
+    const countEl = document.getElementById('coupon-prod-count');
+    if (!countEl) return;
+    const n = selectedCouponProductIds().length;
+    const total = document.querySelectorAll('#coupon-prod-picker .coupon-prod-cb').length;
+    countEl.textContent = n + ' món được giảm / ' + total + ' sản phẩm';
+}
+
+function filterCouponProductPicker() {
+    const q = String((document.getElementById('coupon-prod-search') || {}).value || '').trim().toLowerCase();
+    document.querySelectorAll('#coupon-prod-picker .sell-prod-group').forEach(group => {
+        let visible = 0;
+        group.querySelectorAll('.sell-prod-row').forEach(row => {
+            const show = !q || (row.getAttribute('data-name') || '').indexOf(q) !== -1;
+            row.style.display = show ? 'flex' : 'none';
+            if (show) visible += 1;
+        });
+        group.style.display = visible ? '' : 'none';
+    });
+}
+
+function renderCouponProductPicker() {
+    const box = document.getElementById('coupon-prod-picker');
+    if (!box) return;
+    const groups = { cheat: 'Bot & Cheat', acc: 'Tài khoản Game', tool: 'Công cụ hỗ trợ', other: 'Khác' };
+    const products = Array.isArray(allAdminProductsCache) ? allAdminProductsCache.slice() : [];
+    if (!products.length) {
+        box.innerHTML = '<p class="desc-text">Không tải được sản phẩm. F5 trang admin rồi mở lại.</p>';
+        updateCouponProdCount();
+        return;
+    }
+    const used = {};
+    products.forEach(p => { used[sellProductCategory(p)] = true; });
+    let html = '';
+    const order = ['cheat', 'acc', 'tool'].concat(Object.keys(used).filter(k => !groups[k]));
+    if (used.other) order.push('other');
+    const seen = new Set();
+    order.forEach(cat => {
+        if (seen.has(cat)) return;
+        seen.add(cat);
+        const list = products.filter(p => sellProductCategory(p) === cat);
+        if (!list.length) return;
+        html += '<div class="sell-prod-group"><p class="sell-prod-cat">' + (groups[cat] || cat) + ' (' + list.length + ')</p>';
+        list.forEach(p => {
+            const id = sellProdId(p);
+            const name = String(p.name || 'Sản phẩm').replace(/[<>]/g, '');
+            html += '<div class="sell-prod-row" data-name="' + name.toLowerCase().replace(/"/g, '') + '">'
+                + '<label><input type="checkbox" class="coupon-prod-cb" value="' + id + '"> '
+                + '<span class="sell-prod-name">' + name + ' <small>' + Number(p.price || 0).toLocaleString() + 'đ</small></span></label>'
+                + '</div>';
+        });
+        html += '</div>';
+    });
+    box.innerHTML = html || '<p class="desc-text">Không có sản phẩm để chọn.</p>';
+    box.querySelectorAll('.coupon-prod-cb').forEach(el => {
+        el.addEventListener('change', updateCouponProdCount);
+    });
+    const search = document.getElementById('coupon-prod-search');
+    if (search && !search.dataset.bound) {
+        search.dataset.bound = '1';
+        search.addEventListener('input', filterCouponProductPicker);
+    }
+    updateCouponProdCount();
 }
 
 function generateCouponCode() {
@@ -1576,8 +1660,17 @@ function openAddCouponModal() {
     if (maxEl) maxEl.value = '0';
     if (expEl) expEl.value = '';
     setCouponPercent(20);
+    const picker = document.getElementById('coupon-prod-picker');
+    if (picker) picker.innerHTML = '<p class="desc-text">Đang tải sản phẩm...</p>';
     m.style.display = 'flex';
     m.classList.add('show');
+    fetch(API_URL + '/products', { cache: 'no-store' })
+        .then(r => r.json())
+        .then(list => {
+            allAdminProductsCache = Array.isArray(list) ? list : [];
+            renderCouponProductPicker();
+        })
+        .catch(() => renderCouponProductPicker());
 }
 
 function closeAddCouponModal() {
@@ -1592,9 +1685,13 @@ async function executeAddCoupon() {
     const discountPercent = document.getElementById('new-coupon-percent').value;
     const maxUsage = document.getElementById('new-coupon-max').value;
     const expiresAt = document.getElementById('new-coupon-expires').value;
+    const productIds = selectedCouponProductIds();
 
     if (!code || !discountPercent) {
         return showToast('Vui lòng nhập Mã và % giảm giá!');
+    }
+    if (!productIds.length) {
+        return showToast('Hãy tick ít nhất 1 sản phẩm được giảm!');
     }
 
     try {
@@ -1605,7 +1702,8 @@ async function executeAddCoupon() {
                 code,
                 discountPercent: parseInt(discountPercent, 10),
                 maxUsage: parseInt(maxUsage, 10) || 0,
-                expiresAt: expiresAt || null
+                expiresAt: expiresAt || null,
+                productIds
             })
         });
         const data = await res.json();
@@ -1694,6 +1792,7 @@ function injectCouponAndResellerUI() {
                                 <tr>
                                     <th>Mã giảm giá</th>
                                     <th>Mức giảm</th>
+                                    <th>Sản phẩm</th>
                                     <th>Lượt dùng</th>
                                     <th>Hạn dùng</th>
                                     <th>Trạng thái</th>
@@ -1704,7 +1803,7 @@ function injectCouponAndResellerUI() {
                         </table>
                     </div>
                 </div>
-                <p class="coupon-hint"><i class="fas fa-info-circle"></i> Đại lý Sell không tạo ở đây — vào <strong>Thành viên</strong>, bấm <strong>Cấp Sell</strong> trên từng tài khoản.</p>
+                <p class="coupon-hint"><i class="fas fa-info-circle"></i> Mã chỉ giảm đúng sản phẩm admin tick khi tạo. Sell chỉnh ở <strong>Thành viên → Cấp Sell</strong>.</p>
             </div>`);
     }
 
@@ -1732,13 +1831,14 @@ function injectCouponAndResellerUI() {
                 </div>
             </div>`);
 
-    if (!document.getElementById('admin-add-coupon-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
+    const oldCouponModal = document.getElementById('admin-add-coupon-modal');
+    if (oldCouponModal) oldCouponModal.remove();
+    document.body.insertAdjacentHTML('beforeend', `
             <div class="modal-overlay" id="admin-add-coupon-modal" style="display: none;">
-                <div class="modal-card glass-panel" style="width: 480px; max-width: 95vw; padding: 28px;">
+                <div class="modal-card glass-panel" style="width: 560px; max-width: 95vw; padding: 28px; max-height: 92vh; overflow-y: auto;">
                     <button type="button" class="close-modal" onclick="closeAddCouponModal()">×</button>
                     <h2 class="gradient-text" style="text-align:center; margin-bottom: 8px;"><i class="fas fa-ticket-alt"></i> TẠO MÃ GIẢM GIÁ</h2>
-                    <p class="desc-text" style="text-align:center; margin-bottom: 20px;">Mã sẽ được in hoa. Khách nhập khi thanh toán.</p>
+                    <p class="desc-text" style="text-align:center; margin-bottom: 20px;">Mã chỉ giảm những sản phẩm bạn tick bên dưới.</p>
                     <div class="input-group">
                         <i class="fas fa-barcode"></i>
                         <input type="text" id="new-coupon-code" placeholder="Mã code (VD: GHOSTVIP20)" style="text-transform:uppercase;">
@@ -1756,7 +1856,11 @@ function injectCouponAndResellerUI() {
                         <button type="button" class="coupon-preset" data-percent="30" onclick="setCouponPercent(30)">-30%</button>
                         <button type="button" class="coupon-preset" data-percent="50" onclick="setCouponPercent(50)">-50%</button>
                     </div>
-                    <div class="input-group" style="margin-top:16px;">
+                    <p style="color:#c4b5fd; font-size:0.85rem; font-weight:700; margin:16px 0 8px;">Sản phẩm được giảm</p>
+                    <input type="search" id="coupon-prod-search" placeholder="Tìm sản phẩm..." style="width:100%; margin-bottom:10px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.1); background:#0d0d14; color:#fff; font:inherit;">
+                    <div id="coupon-prod-picker" class="sell-prod-picker"></div>
+                    <p id="coupon-prod-count" class="desc-text" style="margin:8px 0 14px;">0 sản phẩm được giảm</p>
+                    <div class="input-group" style="margin-top:8px;">
                         <i class="fas fa-users"></i>
                         <input type="number" id="new-coupon-max" min="0" value="0" placeholder="Giới hạn lượt dùng (0 = không giới hạn)">
                     </div>
@@ -1771,7 +1875,6 @@ function injectCouponAndResellerUI() {
                     </div>
                 </div>
             </div>`);
-    }
 }
 
 let allAdminNewsCache = [];

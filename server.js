@@ -238,6 +238,12 @@ function normalizeSellProductRates(list) {
     }
     return out;
 }
+function couponAppliesToProduct(coupon, product) {
+    const ids = normalizeSellProductIds(coupon && coupon.productIds);
+    if (!ids.length || !product) return false;
+    return ids.includes(String(product._id || product.id || ''));
+}
+
 function publicSellFields(user) {
     let rates = normalizeSellProductRates(user && user.sellProductRates);
     if (!rates.length) {
@@ -521,6 +527,7 @@ const CouponSchema = new mongoose.Schema({
     usedCount: { type: Number, default: 0 },
     status: { type: String, default: 'active' }, // active | inactive
     expiresAt: { type: Date },
+    productIds: { type: [String], default: [] },
     dateCreated: { type: Date, default: Date.now }
 });
 const Coupon = mongoose.model('Coupon', CouponSchema);
@@ -1221,8 +1228,10 @@ app.get('/api/admin/coupons', async (req, res) => {
 
 app.post('/api/admin/coupons', async (req, res) => {
     try {
-        const { code, discountPercent, maxUsage, expiresAt } = req.body;
+        const { code, discountPercent, maxUsage, expiresAt, productIds } = req.body;
         if (!code || !discountPercent) return res.status(400).json({ message: "Vui lòng nhập đầy đủ mã và % giảm giá!" });
+        const allowedIds = normalizeSellProductIds(productIds);
+        if (!allowedIds.length) return res.status(400).json({ message: "Hãy chọn ít nhất 1 sản phẩm được giảm." });
         
         const cleanCode = String(code).trim().toUpperCase();
         const existing = await Coupon.findOne({ code: cleanCode });
@@ -1232,7 +1241,8 @@ app.post('/api/admin/coupons', async (req, res) => {
             code: cleanCode,
             discountPercent: Math.min(100, Math.max(1, Number(discountPercent))),
             maxUsage: Number(maxUsage) || 0,
-            expiresAt: expiresAt ? new Date(expiresAt) : null
+            expiresAt: expiresAt ? new Date(expiresAt) : null,
+            productIds: allowedIds
         });
         await newCoupon.save();
         res.status(201).json({ message: "Tạo mã giảm giá thành công!", coupon: newCoupon });
@@ -1268,7 +1278,7 @@ app.delete('/api/admin/coupons/:id', async (req, res) => {
 // API Kiểm tra mã giảm giá dành cho Client
 app.post('/api/coupons/check', async (req, res) => {
     try {
-        const { code, username } = req.body;
+        const { code, productId, productName } = req.body;
         if (!code) return res.status(400).json({ message: "Vui lòng nhập mã!" });
         
         const coupon = await Coupon.findOne({ code: String(code).trim().toUpperCase(), status: 'active' });
@@ -1281,10 +1291,22 @@ app.post('/api/coupons/check', async (req, res) => {
             return res.status(400).json({ message: "Mã giảm giá đã hết số lượt sử dụng!" });
         }
 
+        let product = null;
+        if (productId && /^[a-f0-9]{24}$/i.test(String(productId))) {
+            product = await Product.findById(productId);
+        } else if (productName) {
+            product = await Product.findOne({ name: String(productName).trim() });
+        }
+        if (!product) return res.status(400).json({ message: "Chọn sản phẩm rồi mới áp mã giảm giá." });
+        if (!couponAppliesToProduct(coupon, product)) {
+            return res.status(400).json({ message: "Mã này không áp dụng cho sản phẩm đang chọn." });
+        }
+
         res.status(200).json({
             valid: true,
             code: coupon.code,
             discountPercent: coupon.discountPercent,
+            productIds: normalizeSellProductIds(coupon.productIds),
             message: `Áp dụng mã ${coupon.code} thành công! Giảm ${coupon.discountPercent}%.`
         });
     } catch (error) {
@@ -1523,18 +1545,18 @@ app.post('/api/buy', requireShop, rateLimit(60 * 1000, 20), async (req, res) => 
         let discountDesc = '';
         let couponDoc = null;
 
-        const canDiscount = product.isDiscountable !== false;
         if (sellDiscountOnProduct(user, product)) {
             discountPercent = sellDiscountPercentForProduct(user, product);
             discountDesc = ` (Đại lý Sell giảm ${discountPercent}%)`;
         }
-        if (canDiscount && couponCode) {
+        if (couponCode) {
             const cCode = String(couponCode).trim().toUpperCase();
             const foundCoupon = await Coupon.findOne({ code: cCode, status: 'active' });
             if (foundCoupon) {
                 const notExpired = !foundCoupon.expiresAt || new Date(foundCoupon.expiresAt) >= new Date();
                 const hasUses = !foundCoupon.maxUsage || foundCoupon.usedCount < foundCoupon.maxUsage;
-                if (notExpired && hasUses && foundCoupon.discountPercent > discountPercent) {
+                const allowed = couponAppliesToProduct(foundCoupon, product);
+                if (notExpired && hasUses && allowed && foundCoupon.discountPercent > discountPercent) {
                     discountPercent = foundCoupon.discountPercent;
                     discountDesc = ` (Mã ${foundCoupon.code} giảm ${discountPercent}%)`;
                     couponDoc = foundCoupon;
