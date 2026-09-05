@@ -416,13 +416,14 @@ function showProductModalEl() {
 }
 
 const DEFAULT_IMG_LIBRARY = [
-    '/Img/aurora.png',
-    '/Img/Bypass.png',
-    '/Img/Blue.png',
-    '/Img/MSI.png',
-    '/Img/anti_vius.png',
-    '/Img/file_game.png',
-    '/Img/setup_driver.png',
+    '/Img/aurora.webp',
+    '/Img/Bypass.webp',
+    '/Img/Blue.webp',
+    '/Img/MSI.webp',
+    '/Img/anti_vius.webp',
+    '/Img/file_game.webp',
+    '/Img/setup_driver.webp',
+    '/Img/GhostAI.webp',
     '/src/IMG/cover.jpg',
     '/src/IMG/default.svg'
 ];
@@ -479,7 +480,7 @@ async function openAddProductModal() {
         document.getElementById('pm-ishot').checked = false;
         const tagEl = document.getElementById('pm-tag');
         if (tagEl) tagEl.value = '';
-        await loadProductImageOptions('pm-img', '/Img/aurora.png');
+        await loadProductImageOptions('pm-img', '/Img/aurora.webp');
     } catch (e) {
         console.error(e);
         showToast('Không mở được form thêm sản phẩm!');
@@ -893,15 +894,15 @@ function injectDownloadsAdminUI() {
                     <div style="margin-bottom: 18px;">
                         <label class="admin-label" style="color:#ccc; font-size:0.85rem; display:block; margin-bottom:8px;">Ảnh bìa (chọn từ thư mục Img hoặc tải lên)</label>
                         <select id="dl-img" class="admin-input" style="width:100%; margin-bottom:10px; padding: 10px; background: #1a1a2e; color: #fff; border: 1px solid #7c3aed; border-radius: 8px;" onchange="updateDownloadImagePreview(this.value)">
-                            <option value="/Img/aurora.png">aurora.png</option>
-                            <option value="/Img/Blue.png">Blue.png</option>
-                            <option value="/Img/Bypass.png">Bypass.png</option>
-                            <option value="/Img/MSI.png">MSI.png</option>
+                            <option value="/Img/aurora.webp">aurora.webp</option>
+                            <option value="/Img/Blue.webp">Blue.webp</option>
+                            <option value="/Img/Bypass.webp">Bypass.webp</option>
+                            <option value="/Img/MSI.webp">MSI.webp</option>
                             <option value="/src/IMG/cover.jpg">cover.jpg</option>
                         </select>
                         <input type="file" id="dl-img-file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="width:100%; color:#ccc; font-size:0.85rem;">
                         <div style="width:100%; height:120px; background:radial-gradient(circle at center, rgba(168, 85, 247, 0.15), #0a0a10); border-radius:10px; margin-top:10px; border:1px solid rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; overflow:hidden; padding:5px;">
-                            <img id="dl-img-preview" alt="preview" src="/Img/aurora.png" style="max-width:100%; max-height:100%; object-fit:contain; display:block;">
+                            <img id="dl-img-preview" alt="preview" src="/Img/aurora.webp" style="max-width:100%; max-height:100%; object-fit:contain; display:block;">
                         </div>
                     </div>
                     <div class="input-group"><i class="fas fa-palette"></i><input type="text" id="dl-color" placeholder="Màu (không bắt buộc)"></div>
@@ -972,7 +973,11 @@ async function fetchDownloadsAdmin() {
 function resolveDownloadImage(imageUrl) {
     if (!imageUrl) return '/src/IMG/cover.jpg';
     if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
-    if (imageUrl.startsWith('/src/IMG/') || imageUrl.startsWith('/Img/') || imageUrl.startsWith('/img/')) return imageUrl;
+    if (imageUrl.startsWith('/src/IMG/') || imageUrl.startsWith('/Img/') || imageUrl.startsWith('/img/')) {
+        return imageUrl.startsWith('/Img/') && /\.png$/i.test(imageUrl)
+            ? imageUrl.replace(/\.png$/i, '.webp')
+            : imageUrl;
+    }
     const clean = String(imageUrl).replace(/^.*[\\/]/, '');
     if (clean.toLowerCase().includes('default') || clean.toLowerCase().includes('cover')) {
         return '/src/IMG/' + clean;

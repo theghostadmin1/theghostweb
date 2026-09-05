@@ -1755,8 +1755,12 @@ async function executeAdvancedBuy() {
 function resolveClientDownloadImage(imageUrl) {
     if (!imageUrl) return '/src/IMG/cover.jpg';
     if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
-    if (imageUrl.startsWith('/src/IMG/') || imageUrl.startsWith('/Img/') || imageUrl.startsWith('/img/')) return imageUrl;
-    return '/Img/' + String(imageUrl).replace(/^.*[\\/]/, '');
+    let url = String(imageUrl);
+    if (!(url.startsWith('/src/IMG/') || url.startsWith('/Img/') || url.startsWith('/img/'))) {
+        url = '/Img/' + url.replace(/^.*[\\/]/, '');
+    }
+    if (url.startsWith('/Img/') && /\.png$/i.test(url)) url = url.replace(/\.png$/i, '.webp');
+    return url;
 }
 
 let allClientDownloads = [];
