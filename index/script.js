@@ -2156,5 +2156,10 @@ window.likeNews = likeNews;
 
 document.addEventListener('click', (e) => {
     const desc = e.target.closest('#download-page .dl-card-desc');
-    if (desc) desc.classList.toggle('is-open');
+    if (desc) {
+        desc.classList.toggle('is-open');
+        return;
+    }
+    const feats = e.target.closest('.prod-card-features');
+    if (feats) feats.classList.toggle('is-open');
 });
