@@ -176,6 +176,7 @@ function goToProductTab(tabId) {
         const btn = document.querySelector('.prod-tab[onclick*="\'' + tabId + '\'"]')
             || Array.from(document.querySelectorAll('.prod-tab')).find(b => {
                 const t = (b.textContent || '').toLowerCase();
+                if (tabId === 'all') return /tất cả|all product|全部|ทั้งหมด|전체|すべて/.test(t);
                 if (tabId === 'tool') return /công cụ|check|tool/.test(t);
                 if (tabId === 'cheat') return /bot|cheat/.test(t);
                 if (tabId === 'acc') return /tài khoản|acc/.test(t);
@@ -287,7 +288,7 @@ const translations = {
         'search_placeholder': 'Tìm kiếm sản phẩm, dịch vụ... (Enter)',
         'stat_balance': 'Số dư', 'stat_orders': 'Đơn hàng', 'stat_member': 'Thành viên',
         'prod_title': '<i class="fas fa-store"></i> DANH MỤC SẢN PHẨM',
-        'tab_cheat': 'Bot & Cheat', 'tab_acc': 'Tài khoản Game', 'tab_tool': 'Công cụ Check',
+        'tab_all': 'Tất cả sản phẩm', 'tab_cheat': 'Bot & Cheat', 'tab_acc': 'Tài khoản Game', 'tab_tool': 'Công cụ Check',
         'btn_buy': '<i class="fas fa-shopping-cart"></i> Mua', 'prod_desc': 'Sản phẩm uy tín, an toàn 100% từ hệ thống TheGhost.',
         'order_title': '<i class="fas fa-box-open"></i> QUẢN LÝ ĐƠN HÀNG', 'history_title': '<i class="fas fa-history"></i> LỊCH SỬ GIAO DỊCH',
         'chat_btn': '<i class="fas fa-wand-magic-sparkles"></i> Chat Hỗ Trợ AI'
@@ -297,7 +298,7 @@ const translations = {
         'search_placeholder': 'Search products, services... (Enter)',
         'stat_balance': 'Balance', 'stat_orders': 'Orders', 'stat_member': 'Member',
         'prod_title': '<i class="fas fa-store"></i> PRODUCTS CATALOG',
-        'tab_cheat': 'Bot & Cheat', 'tab_acc': 'Game Accounts', 'tab_tool': 'Check Tools',
+        'tab_all': 'All products', 'tab_cheat': 'Bot & Cheat', 'tab_acc': 'Game Accounts', 'tab_tool': 'Check Tools',
         'btn_buy': '<i class="fas fa-shopping-cart"></i> Buy', 'prod_desc': 'Trusted product, 100% safe from TheGhost system.',
         'order_title': '<i class="fas fa-box-open"></i> ORDER MANAGEMENT', 'history_title': '<i class="fas fa-history"></i> TRANSACTION HISTORY',
         'chat_btn': '<i class="fas fa-wand-magic-sparkles"></i> AI Support Chat'
@@ -307,7 +308,7 @@ const translations = {
         'search_placeholder': '搜索产品，服务... (Enter)',
         'stat_balance': '余额', 'stat_orders': '订单数', 'stat_member': '会员',
         'prod_title': '<i class="fas fa-store"></i> 产品目录',
-        'tab_cheat': '外挂 & 辅助', 'tab_acc': '游戏账号', 'tab_tool': '检测工具',
+        'tab_all': '全部产品', 'tab_cheat': '外挂 & 辅助', 'tab_acc': '游戏账号', 'tab_tool': '检测工具',
         'btn_buy': '<i class="fas fa-shopping-cart"></i> 购买', 'prod_desc': '信誉产品，TheGhost系统100%安全。',
         'order_title': '<i class="fas fa-box-open"></i> 订单管理', 'history_title': '<i class="fas fa-history"></i> 交易历史',
         'chat_btn': '<i class="fas fa-wand-magic-sparkles"></i> AI 聊天支持'
@@ -317,7 +318,7 @@ const translations = {
         'search_placeholder': 'ค้นหาสินค้า บริการ... (Enter)',
         'stat_balance': 'ยอดคงเหลือ', 'stat_orders': 'คำสั่งซื้อ', 'stat_member': 'สมาชิก',
         'prod_title': '<i class="fas fa-store"></i> หมวดหมู่สินค้า',
-        'tab_cheat': 'บอท & โปร', 'tab_acc': 'บัญชีเกม', 'tab_tool': 'เครื่องมือตรวจสอบ',
+        'tab_all': 'สินค้าทั้งหมด', 'tab_cheat': 'บอท & โปร', 'tab_acc': 'บัญชีเกม', 'tab_tool': 'เครื่องมือตรวจสอบ',
         'btn_buy': '<i class="fas fa-shopping-cart"></i> ซื้อ', 'prod_desc': 'สินค้าที่เชื่อถือได้ ปลอดภัย 100% จากระบบ TheGhost',
         'order_title': '<i class="fas fa-box-open"></i> จัดการคำสั่งซื้อ', 'history_title': '<i class="fas fa-history"></i> ประวัติการทำรายการ',
         'chat_btn': '<i class="fas fa-wand-magic-sparkles"></i> แชทสนับสนุน AI'
@@ -327,7 +328,7 @@ const translations = {
         'search_placeholder': '제품, 서비스 검색... (Enter)',
         'stat_balance': '잔액', 'stat_orders': '주문', 'stat_member': '회원',
         'prod_title': '<i class="fas fa-store"></i> 제품 카탈로그',
-        'tab_cheat': '봇 & 치트', 'tab_acc': '게임 계정', 'tab_tool': '확인 도구',
+        'tab_all': '전체 상품', 'tab_cheat': '봇 & 치트', 'tab_acc': '게임 계정', 'tab_tool': '확인 도구',
         'btn_buy': '<i class="fas fa-shopping-cart"></i> 구매', 'prod_desc': 'TheGhost 시스템의 100% 안전한 신뢰할 수 있는 제품.',
         'order_title': '<i class="fas fa-box-open"></i> 주문 관리', 'history_title': '<i class="fas fa-history"></i> 거래 내역',
         'chat_btn': '<i class="fas fa-wand-magic-sparkles"></i> AI 채팅 지원'
@@ -337,7 +338,7 @@ const translations = {
         'search_placeholder': '製品、サービスを検索... (Enter)',
         'stat_balance': '残高', 'stat_orders': '注文', 'stat_member': 'メンバー',
         'prod_title': '<i class="fas fa-store"></i> 製品カタログ',
-        'tab_cheat': 'ボット＆チート', 'tab_acc': 'ゲームアカウント', 'tab_tool': '確認ツール',
+        'tab_all': 'すべての製品', 'tab_cheat': 'ボット＆チート', 'tab_acc': 'ゲームアカウント', 'tab_tool': '確認ツール',
         'btn_buy': '<i class="fas fa-shopping-cart"></i> 購入', 'prod_desc': 'TheGhostシステムの100％安全な信頼できる製品。',
         'order_title': '<i class="fas fa-box-open"></i> 注文管理', 'history_title': '<i class="fas fa-history"></i> 取引履歴',
         'chat_btn': '<i class="fas fa-wand-magic-sparkles"></i> AI チャットサポート'
@@ -393,16 +394,54 @@ document.addEventListener('click', function (event) {
 // ==========================================
 // 🌟 2. KÉO DỮ LIỆU SẢN PHẨM THẬT TỪ DATABASE
 // ==========================================
+function ensureAllProductsTab() {
+    const anyTab = document.querySelector('.prod-tab');
+    const tabs = document.querySelector('.product-tabs') || (anyTab && anyTab.parentElement);
+    if (!tabs) return;
+
+    const isNew = !document.getElementById('tab-all-products');
+    let allBtn = document.getElementById('tab-all-products');
+    if (!allBtn) {
+        allBtn = document.createElement('button');
+        allBtn.id = 'tab-all-products';
+        allBtn.type = 'button';
+        allBtn.className = 'prod-tab';
+        allBtn.setAttribute('data-i18n', 'tab_all');
+        allBtn.textContent = (translations[currentSystemLang] && translations[currentSystemLang].tab_all) || 'Tất cả sản phẩm';
+        allBtn.setAttribute('onclick', "switchProdTab('all', this)");
+        tabs.insertBefore(allBtn, tabs.firstChild);
+    }
+
+    const host = document.getElementById('prod-cheat')
+        || document.querySelector('.prod-content')
+        || (document.getElementById('grid-cheat') && document.getElementById('grid-cheat').parentElement);
+    if (!host || !host.parentElement) return;
+
+    let allPanel = document.getElementById('prod-all');
+    if (!allPanel) {
+        allPanel = document.createElement('div');
+        allPanel.id = 'prod-all';
+        allPanel.className = 'prod-content';
+        allPanel.innerHTML = '<div class="prod-grid" id="grid-all"></div>';
+        host.parentElement.insertBefore(allPanel, host);
+    }
+
+    if (isNew) switchProdTab('all', allBtn);
+}
+
 async function loadClientProducts() {
     try {
         const res = await fetch(`${API_URL}/products`, { cache: 'no-store' });
         const products = await res.json();
         window.globalProducts = products;
+        ensureAllProductsTab();
 
+        const gridAll = document.getElementById('grid-all');
         const gridCheat = document.getElementById('grid-cheat');
         const gridAcc = document.getElementById('grid-acc');
         const gridTool = document.getElementById('grid-tool');
 
+        if (gridAll) gridAll.innerHTML = '';
         if (gridCheat) gridCheat.innerHTML = '';
         if (gridAcc) gridAcc.innerHTML = '';
         if (gridTool) gridTool.innerHTML = '';
@@ -473,6 +512,7 @@ async function loadClientProducts() {
                 </div>
             `;
 
+            if (gridAll) gridAll.insertAdjacentHTML('beforeend', cardHtml);
             if (prod.category === 'cheat' && gridCheat) {
                 gridCheat.insertAdjacentHTML('beforeend', cardHtml);
             } else if (prod.category === 'acc' && gridAcc) {
@@ -817,6 +857,8 @@ function switchPage(pageId) {
 function scrollToProducts() {
     switchPage('home');
     setTimeout(() => {
+        const allBtn = document.getElementById('tab-all-products');
+        if (allBtn) switchProdTab('all', allBtn);
         const sec = document.getElementById('products-section');
         if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
@@ -2114,10 +2156,5 @@ window.likeNews = likeNews;
 
 document.addEventListener('click', (e) => {
     const desc = e.target.closest('#download-page .dl-card-desc');
-    if (desc) {
-        desc.classList.toggle('is-open');
-        return;
-    }
-    const feats = e.target.closest('.prod-card-features');
-    if (feats) feats.classList.toggle('is-open');
+    if (desc) desc.classList.toggle('is-open');
 });
